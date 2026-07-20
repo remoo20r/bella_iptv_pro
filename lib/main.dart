@@ -43,7 +43,7 @@ class BellaIPTVApp extends StatelessWidget {
   }
 }
 
-// --- 1. تسجيل الدخول ---
+// --- 1. شاشة تسجيل الدخول ---
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
 
@@ -76,7 +76,7 @@ class _LoginPageState extends State<LoginPage> {
     try {
       final response = await http.get(
         authUrl,
-        headers: {"User-Agent": "IPTVSmarters/1.0", "Accept": "*/*"},
+        headers: const {"User-Agent": "IPTVSmarters/1.0", "Accept": "*/*"},
       ).timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200) {
@@ -377,7 +377,7 @@ class HomeScreen extends StatelessWidget {
   }
 }
 
-// --- 3. شاشة البث المباشر (المجموعات + القنوات + المشغل) ---
+// --- 3. شاشة البث المباشر الموزعة بالـ Categories ---
 class LiveChannelsScreen extends StatefulWidget {
   final String username;
   final String password;
@@ -410,8 +410,8 @@ class _LiveChannelsScreenState extends State<LiveChannelsScreen> {
         "$SERVER_URL/player_api.php?username=${widget.username}&password=${widget.password}&action=get_live_streams");
 
     try {
-      final catRes = await http.get(catUrl, headers: {"User-Agent": "IPTVSmarters/1.0"});
-      final chRes = await http.get(chUrl, headers: {"User-Agent": "IPTVSmarters/1.0"});
+      final catRes = await http.get(catUrl, headers: const {"User-Agent": "IPTVSmarters/1.0"});
+      final chRes = await http.get(chUrl, headers: const {"User-Agent": "IPTVSmarters/1.0"});
 
       if (catRes.statusCode == 200 && chRes.statusCode == 200) {
         final cats = json.decode(catRes.body);
@@ -552,7 +552,7 @@ class _LiveChannelsScreenState extends State<LiveChannelsScreen> {
   }
 }
 
-// --- 4. الأفلام والمسلسلات والمجموعات ---
+// --- 4. شاشة الأفلام والمسلسلات مع المجموعات ---
 class VODCategoryScreen extends StatefulWidget {
   final String username;
   final String password;
@@ -592,8 +592,8 @@ class _VODCategoryScreenState extends State<VODCategoryScreen> {
     final itemUrl = Uri.parse("$SERVER_URL/player_api.php?username=${widget.username}&password=${widget.password}&action=$itemAction");
 
     try {
-      final catRes = await http.get(catUrl, headers: {"User-Agent": "IPTVSmarters/1.0"});
-      final itemRes = await http.get(itemUrl, headers: {"User-Agent": "IPTVSmarters/1.0"});
+      final catRes = await http.get(catUrl, headers: const {"User-Agent": "IPTVSmarters/1.0"});
+      final itemRes = await http.get(itemUrl, headers: const {"User-Agent": "IPTVSmarters/1.0"});
 
       if (catRes.statusCode == 200 && itemRes.statusCode == 200) {
         final cats = json.decode(catRes.body);
