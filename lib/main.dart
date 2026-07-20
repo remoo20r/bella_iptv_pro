@@ -965,24 +965,26 @@ class _LiveChannelsScreenState extends State<LiveChannelsScreen> with AutoHideCo
       return Container(color: Colors.black);
     }
 
-    final aspect = controller.value.aspectRatio <= 0 ? (16 / 9) : controller.value.aspectRatio;
-    final Size size = controller.value.size;
-    final double vidW = size.width <= 0 ? 16 : size.width;
-    final double vidH = size.height <= 0 ? 9 : size.height;
-
-    // وضع ملء الشاشة: املأ الشاشة بالكامل (قد يُقص جزء بسيط جداً من الأطراف)
+    // وضع ملء الشاشة: يملأ كامل مساحة الشاشة بشكل متناسق ومستقر
     if (cover) {
       return Container(
         color: Colors.black,
+        width: double.infinity,
+        height: double.infinity,
         child: FittedBox(
           fit: BoxFit.cover,
           clipBehavior: Clip.hardEdge,
-          child: SizedBox(width: vidW, height: vidH, child: VideoPlayer(controller)),
+          child: SizedBox(
+            width: controller.value.size.width > 0 ? controller.value.size.width : 16,
+            height: controller.value.size.height > 0 ? controller.value.size.height : 9,
+            child: VideoPlayer(controller),
+          ),
         ),
       );
     }
 
-    // المعاينة الجانبية: أظهر الفيديو كاملاً بأبعاده الصحيحة داخل المساحة المتاحة
+    // المعاينة الجانبية
+    final aspect = controller.value.aspectRatio <= 0 ? (16 / 9) : controller.value.aspectRatio;
     return Container(
       color: Colors.black,
       child: Center(
