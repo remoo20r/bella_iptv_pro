@@ -1,13 +1,23 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:better_player/better_player.dart';
 
-// --- الثوابت والإعدادات الأساسية ---
+// تجاوز قيود شهادات الأمان وحظر اتصالات HTTP غير المشفرة
+class MyHttpOverrides extends HttpOverrides {
+  @override
+  HttpClient createHttpClient(SecurityContext? context) {
+    return super.createHttpClient(context)
+      ..badCertificateCallback = (X509Certificate cert, String host, int port) => true;
+  }
+}
+
 const String SERVER_URL = "http://arabesktv.com:2095";
 const String APP_NAME = "Bella IPTV Pro";
 
 void main() {
+  HttpOverrides.global = MyHttpOverrides();
   runApp(const BellaIPTVApp());
 }
 
@@ -66,7 +76,8 @@ class _LoginPageState extends State<LoginPage> {
         "$SERVER_URL/player_api.php?username=$username&password=$password");
 
     try {
-      final response = await http.get(authUrl);
+      final response = await http.get(authUrl).timeout(const Duration(seconds: 12));
+      
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         if (data['user_info'] != null &&
@@ -88,12 +99,12 @@ class _LoginPageState extends State<LoginPage> {
         }
       } else {
         setState(() {
-          _errorMessage = "عذراً، تعذر الاتصال بالسيرفر";
+          _errorMessage = "خطأ في السيرفر (${response.statusCode})";
         });
       }
     } catch (e) {
       setState(() {
-        _errorMessage = "حدث خطأ في الاتصال، تأكد من الشبكة";
+        _errorMessage = "تعذر الاتصال بالسيرفر، تأكد من البيانات والشبكة";
       });
     } finally {
       if (mounted) {
