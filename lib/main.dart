@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
@@ -88,6 +89,40 @@ PreferredSizeWidget buildAppBar(String title) {
   );
 }
 
+// --- مؤقت الاختفاء التلقائي للتحكم (٣ ثوان) يُستخدم في شاشات التشغيل ---
+mixin AutoHideControls<T extends StatefulWidget> on State<T> {
+  bool controlsVisible = true;
+  Timer? _hideTimer;
+
+  void showControlsTemporarily() {
+    if (mounted) setState(() => controlsVisible = true);
+    _hideTimer?.cancel();
+    _hideTimer = Timer(const Duration(seconds: 3), () {
+      if (mounted) setState(() => controlsVisible = false);
+    });
+  }
+
+  void startAutoHide() {
+    _hideTimer?.cancel();
+    _hideTimer = Timer(const Duration(seconds: 3), () {
+      if (mounted) setState(() => controlsVisible = false);
+    });
+  }
+
+  void toggleControls() {
+    if (controlsVisible) {
+      _hideTimer?.cancel();
+      setState(() => controlsVisible = false);
+    } else {
+      showControlsTemporarily();
+    }
+  }
+
+  void disposeAutoHide() {
+    _hideTimer?.cancel();
+  }
+}
+
 // --- خلفية متدرجة أسود/أحمر تستخدمها كل الشاشات ---
 class GradientScaffold extends StatelessWidget {
   final PreferredSizeWidget? appBar;
@@ -116,7 +151,7 @@ class GradientScaffold extends StatelessWidget {
   }
 }
 
-// --- عنصر قابل للتفعيل باللمس أو بريموت التي في (يظهر تأشير أحمر/ذهبي عند التركيز) ---
+// --- عنصر قابل للتفعيل باللمس أو بريموت التي في، بتأثير ثلاثي الأبعاد ذهبي عند التركيز ---
 class RemoteFocusable extends StatefulWidget {
   final Widget child;
   final VoidCallback onTap;
@@ -157,22 +192,44 @@ class _RemoteFocusableState extends State<RemoteFocusable> {
       child: GestureDetector(
         onTap: widget.onTap,
         onLongPress: widget.onLongPress,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 120),
-          padding: EdgeInsets.all(_focused ? 3.0 : 0.0),
-          decoration: BoxDecoration(
-            borderRadius: radius,
-            color: _focused ? AppColors.red.withOpacity(0.5) : Colors.transparent,
-            border: _focused ? Border.all(color: AppColors.gold, width: 2.5) : null,
-          ),
-          child: widget.child,
+        child: TweenAnimationBuilder<double>(
+          tween: Tween(begin: 0.0, end: _focused ? 1.0 : 0.0),
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOut,
+          builder: (context, t, child) {
+            return Transform.scale(
+              scale: 1.0 + (0.09 * t),
+              child: Transform(
+                alignment: Alignment.center,
+                transform: Matrix4.identity()
+                  ..setEntry(3, 2, 0.0016)
+                  ..rotateX(-0.07 * t),
+                child: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: radius,
+                    boxShadow: t == 0
+                        ? null
+                        : [
+                            BoxShadow(
+                              color: AppColors.gold.withOpacity(0.6 * t),
+                              blurRadius: 24 * t,
+                              spreadRadius: 2 * t,
+                            ),
+                          ],
+                    border: t == 0 ? null : Border.all(color: AppColors.gold, width: 2.5 * t),
+                  ),
+                  child: widget.child,
+                ),
+              ),
+            );
+          },
         ),
       ),
     );
   }
 }
 
-// --- صف قائمة قابل للتركيز (تصنيفات، قنوات، حلقات...) ---
+// --- صف قائمة قابل للتركيز (تصنيفات، قنوات، مواسم...) ---
 class FocusableRow extends StatefulWidget {
   final Widget? leading;
   final Widget title;
@@ -218,13 +275,17 @@ class _FocusableRowState extends State<FocusableRow> {
         onTap: widget.onTap,
         onLongPress: widget.onLongPress,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 120),
-          margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          duration: const Duration(milliseconds: 150),
+          curve: Curves.easeOut,
+          margin: EdgeInsets.symmetric(horizontal: _focused ? 2 : 6, vertical: 2),
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
           decoration: BoxDecoration(
             color: highlighted ? AppColors.red : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
-            border: _focused ? Border.all(color: AppColors.gold, width: 1.6) : null,
+            border: _focused ? Border.all(color: AppColors.gold, width: 2) : null,
+            boxShadow: _focused
+                ? [BoxShadow(color: AppColors.gold.withOpacity(0.45), blurRadius: 14, spreadRadius: 1)]
+                : null,
           ),
           child: Row(
             children: [
@@ -474,15 +535,23 @@ class _LoginPageState extends State<LoginPage> {
                     onPressed: _isLoading ? null : _login,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.red,
+                      foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
-                        side: const BorderSide(color: AppColors.gold, width: 1.2),
+                        side: const BorderSide(color: AppColors.gold, width: 1.5),
                       ),
                     ),
                     child: _isLoading
-                        ? const CircularProgressIndicator(color: Colors.white)
-                        : const Text('LOG IN',
-                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+                        ? const SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3),
+                          )
+                        : const Text(
+                            'LOG IN',
+                            style: TextStyle(
+                                fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: 1.2, color: Colors.white),
+                          ),
                   ),
                 ),
                 const SizedBox(height: 28),
@@ -693,24 +762,30 @@ class HomeScreen extends StatelessWidget {
     return RemoteFocusable(
       onTap: onTap,
       autofocus: autofocus,
-      borderRadius: BorderRadius.circular(50),
+      borderRadius: BorderRadius.circular(60),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 92,
-            height: 92,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [AppColors.red, Color(0xFF7A0F0F)],
-              ),
+            width: 96,
+            height: 96,
+            padding: const EdgeInsets.all(4),
+            decoration: const BoxDecoration(
               shape: BoxShape.circle,
-              boxShadow: [BoxShadow(color: AppColors.red.withOpacity(0.5), blurRadius: 18, spreadRadius: 1)],
-              border: Border.all(color: AppColors.gold, width: 2),
+              gradient: LinearGradient(colors: [AppColors.gold, Color(0xFF8A6A10)]),
             ),
-            child: Icon(icon, color: AppColors.gold, size: 40),
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [AppColors.red, Color(0xFF5C0D0D)],
+                ),
+                shape: BoxShape.circle,
+                boxShadow: [BoxShadow(color: AppColors.red.withOpacity(0.5), blurRadius: 16, spreadRadius: 1)],
+              ),
+              child: Icon(icon, color: AppColors.gold, size: 40),
+            ),
           ),
           Transform.translate(
             offset: const Offset(0, -10),
@@ -733,7 +808,7 @@ class HomeScreen extends StatelessWidget {
   }
 }
 
-// --- 3. شاشة البث المباشر الموزعة بالـ Categories ---
+// --- 3. شاشة البث المباشر: تصنيفات + قنوات + معاينة، وتكبير كامل للشاشة ---
 class LiveChannelsScreen extends StatefulWidget {
   final String username;
   final String password;
@@ -744,7 +819,7 @@ class LiveChannelsScreen extends StatefulWidget {
   State<LiveChannelsScreen> createState() => _LiveChannelsScreenState();
 }
 
-class _LiveChannelsScreenState extends State<LiveChannelsScreen> {
+class _LiveChannelsScreenState extends State<LiveChannelsScreen> with AutoHideControls<LiveChannelsScreen> {
   List<dynamic> _categories = [];
   List<dynamic> _allChannels = [];
   List<dynamic> _filteredChannels = [];
@@ -753,6 +828,7 @@ class _LiveChannelsScreenState extends State<LiveChannelsScreen> {
   String _selectedChannelTitle = '';
   String _selectedStreamId = '';
   VideoPlayerController? _videoController;
+  bool _isFullscreen = false;
 
   @override
   void initState() {
@@ -808,7 +884,15 @@ class _LiveChannelsScreenState extends State<LiveChannelsScreen> {
   }
 
   void _playChannel(dynamic channel) async {
-    final streamId = channel['stream_id'];
+    final streamId = channel['stream_id'].toString();
+
+    // نفس القناة الشغالة بالفعل: كبّر الشاشة بدل ما تعيد التشغيل
+    if (streamId == _selectedStreamId && _videoController != null) {
+      setState(() => _isFullscreen = true);
+      showControlsTemporarily();
+      return;
+    }
+
     final url = "$SERVER_URL/live/${widget.username}/${widget.password}/$streamId.ts";
 
     if (_videoController != null) {
@@ -818,7 +902,7 @@ class _LiveChannelsScreenState extends State<LiveChannelsScreen> {
 
     setState(() {
       _selectedChannelTitle = channel['name'] ?? '';
-      _selectedStreamId = streamId.toString();
+      _selectedStreamId = streamId;
     });
 
     final controller = VideoPlayerController.networkUrl(
@@ -839,12 +923,85 @@ class _LiveChannelsScreenState extends State<LiveChannelsScreen> {
 
   @override
   void dispose() {
+    disposeAutoHide();
     _videoController?.dispose();
     super.dispose();
   }
 
+  Widget _buildVideoArea() {
+    return Container(
+      color: Colors.black,
+      child: (_videoController != null && _videoController!.value.isInitialized)
+          ? AspectRatio(
+              aspectRatio: _videoController!.value.aspectRatio,
+              child: VideoPlayer(_videoController!),
+            )
+          : Container(color: Colors.black),
+    );
+  }
+
+  Widget _fullscreenOverlay() {
+    return AnimatedOpacity(
+      opacity: controlsVisible ? 1 : 0,
+      duration: const Duration(milliseconds: 250),
+      child: IgnorePointer(
+        ignoring: !controlsVisible,
+        child: SafeArea(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Colors.black.withOpacity(0.8), Colors.transparent],
+              ),
+            ),
+            child: Row(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.fullscreen_exit, color: AppColors.gold, size: 26),
+                  onPressed: () => setState(() => _isFullscreen = false),
+                ),
+                Expanded(
+                  child: Text(
+                    _selectedChannelTitle,
+                    style: const TextStyle(fontSize: 17, color: AppColors.gold, fontWeight: FontWeight.bold),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (_isFullscreen) {
+      return PopScope(
+        canPop: false,
+        onPopInvoked: (didPop) {
+          if (didPop) return;
+          setState(() => _isFullscreen = false);
+        },
+        child: Scaffold(
+          backgroundColor: Colors.black,
+          body: GestureDetector(
+            onTap: toggleControls,
+            child: Stack(
+              children: [
+                Positioned.fill(child: _buildVideoArea()),
+                _fullscreenOverlay(),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     return GradientScaffold(
       appBar: buildAppBar(_selectedChannelTitle.isEmpty ? "Live TV" : _selectedChannelTitle),
       body: _isLoading
@@ -914,14 +1071,14 @@ class _LiveChannelsScreenState extends State<LiveChannelsScreen> {
                         ),
                 ),
                 Expanded(
-                  child: Container(
-                    color: Colors.black,
-                    child: (_videoController != null && _videoController!.value.isInitialized)
-                        ? AspectRatio(
-                            aspectRatio: _videoController!.value.aspectRatio,
-                            child: VideoPlayer(_videoController!),
-                          )
-                        : Container(color: Colors.black),
+                  child: GestureDetector(
+                    onTap: () {
+                      if (_selectedStreamId.isNotEmpty) {
+                        setState(() => _isFullscreen = true);
+                        showControlsTemporarily();
+                      }
+                    },
+                    child: _buildVideoArea(),
                   ),
                 ),
               ],
@@ -1143,7 +1300,7 @@ class _VODCategoryScreenState extends State<VODCategoryScreen> {
   }
 }
 
-// --- 5. شاشة تفاصيل المسلسل (المواسم والحلقات) ---
+// --- 5. شاشة تفاصيل المسلسل: المواسم على الجنب، الحلقات كأيقونات كبيرة ---
 class SeriesDetailScreen extends StatefulWidget {
   final String username;
   final String password;
@@ -1225,56 +1382,108 @@ class _SeriesDetailScreenState extends State<SeriesDetailScreen> {
           : _seasonKeys.isEmpty
               ? const Center(
                   child: Text("لا توجد حلقات متاحة لهذا المسلسل حالياً", style: TextStyle(color: Colors.white70)))
-              : Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+              : Row(
                   children: [
                     SizedBox(
-                      height: 58,
+                      width: 220,
                       child: ListView.builder(
-                        scrollDirection: Axis.horizontal,
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        padding: const EdgeInsets.only(top: 4),
                         itemCount: _seasonKeys.length,
                         itemBuilder: (context, index) {
                           final season = _seasonKeys[index];
                           final isSel = season == _selectedSeason;
-                          return Padding(
-                            padding: const EdgeInsets.only(right: 8),
-                            child: ChoiceChip(
-                              label: Text("الموسم $season", style: const TextStyle(fontSize: 14)),
-                              selected: isSel,
-                              selectedColor: AppColors.red,
-                              backgroundColor: Colors.black.withOpacity(0.4),
-                              labelStyle: TextStyle(color: isSel ? Colors.white : AppColors.gold),
-                              side: BorderSide(color: AppColors.gold.withOpacity(0.5)),
-                              onSelected: (_) => setState(() => _selectedSeason = season),
-                            ),
+                          return FocusableRow(
+                            leading: const Icon(Icons.video_collection, color: AppColors.gold, size: 20),
+                            title: Text("الموسم $season",
+                                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white)),
+                            selected: isSel,
+                            onTap: () => setState(() => _selectedSeason = season),
                           );
                         },
                       ),
                     ),
                     Expanded(
-                      child: ListView.builder(
-                        itemCount: episodes.length,
-                        itemBuilder: (context, index) {
-                          final ep = episodes[index];
-                          final epNum = (ep['episode_num'] ?? (index + 1)).toString();
-                          final epTitle = (ep['title'] ?? 'الحلقة $epNum').toString();
-                          return FocusableRow(
-                            leading: CircleAvatar(
-                              backgroundColor: AppColors.red,
-                              child: Text(epNum, style: const TextStyle(fontSize: 12, color: Colors.white)),
+                      child: episodes.isEmpty
+                          ? const Center(
+                              child: Text("لا توجد حلقات في هذا الموسم", style: TextStyle(color: Colors.white70)))
+                          : GridView.builder(
+                              padding: const EdgeInsets.all(16),
+                              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 4,
+                                childAspectRatio: 0.8,
+                                crossAxisSpacing: 14,
+                                mainAxisSpacing: 14,
+                              ),
+                              itemCount: episodes.length,
+                              itemBuilder: (context, index) {
+                                final ep = episodes[index];
+                                final epNum = (ep['episode_num'] ?? (index + 1)).toString();
+                                final epTitle = (ep['title'] ?? 'الحلقة $epNum').toString();
+                                final cover =
+                                    ep['info'] is Map ? (ep['info']['movie_image'] ?? '').toString() : '';
+
+                                return RemoteFocusable(
+                                  onTap: () => _playEpisode(ep),
+                                  child: Stack(
+                                    children: [
+                                      Container(
+                                        decoration: BoxDecoration(
+                                          color: AppColors.panel,
+                                          borderRadius: BorderRadius.circular(12),
+                                          border: Border.all(color: AppColors.gold.withOpacity(0.3)),
+                                          image: cover.isNotEmpty
+                                              ? DecorationImage(image: NetworkImage(cover), fit: BoxFit.cover)
+                                              : null,
+                                        ),
+                                        child: cover.isEmpty
+                                            ? Center(
+                                                child: Container(
+                                                  width: 56,
+                                                  height: 56,
+                                                  decoration:
+                                                      const BoxDecoration(color: AppColors.red, shape: BoxShape.circle),
+                                                  child: Center(
+                                                    child: Text(
+                                                      epNum,
+                                                      style: const TextStyle(
+                                                          fontSize: 20,
+                                                          fontWeight: FontWeight.bold,
+                                                          color: Colors.white),
+                                                    ),
+                                                  ),
+                                                ),
+                                              )
+                                            : null,
+                                      ),
+                                      Positioned(
+                                        left: 0,
+                                        right: 0,
+                                        bottom: 0,
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                                          decoration: BoxDecoration(
+                                            borderRadius: const BorderRadius.vertical(bottom: Radius.circular(12)),
+                                            gradient: LinearGradient(
+                                              colors: [Colors.black.withOpacity(0.9), Colors.transparent],
+                                              begin: Alignment.bottomCenter,
+                                              end: Alignment.topCenter,
+                                            ),
+                                          ),
+                                          child: Text(
+                                            epTitle,
+                                            textAlign: TextAlign.center,
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(
+                                                fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
                             ),
-                            title: Text(
-                              epTitle,
-                              style: const TextStyle(fontSize: 14, color: Colors.white),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            trailing: const Icon(Icons.play_circle_outline, color: AppColors.gold),
-                            onTap: () => _playEpisode(ep),
-                          );
-                        },
-                      ),
                     ),
                   ],
                 ),
@@ -1282,7 +1491,7 @@ class _SeriesDetailScreenState extends State<SeriesDetailScreen> {
   }
 }
 
-// --- 6. شاشة تشغيل الفيديو (أفلام وحلقات) ---
+// --- 6. شاشة تشغيل الفيديو: تختفي كل عناصر التحكم تلقائيًا وتظهر باللمس ---
 class SimpleVideoPlayerScreen extends StatefulWidget {
   final String title;
   final String url;
@@ -1293,7 +1502,8 @@ class SimpleVideoPlayerScreen extends StatefulWidget {
   State<SimpleVideoPlayerScreen> createState() => _SimpleVideoPlayerScreenState();
 }
 
-class _SimpleVideoPlayerScreenState extends State<SimpleVideoPlayerScreen> {
+class _SimpleVideoPlayerScreenState extends State<SimpleVideoPlayerScreen>
+    with AutoHideControls<SimpleVideoPlayerScreen> {
   VideoPlayerController? _controller;
   bool _hasError = false;
 
@@ -1301,6 +1511,7 @@ class _SimpleVideoPlayerScreenState extends State<SimpleVideoPlayerScreen> {
   void initState() {
     super.initState();
     _initPlayer();
+    startAutoHide();
   }
 
   Future<void> _initPlayer() async {
@@ -1330,13 +1541,17 @@ class _SimpleVideoPlayerScreenState extends State<SimpleVideoPlayerScreen> {
 
   @override
   void dispose() {
+    disposeAutoHide();
     _controller?.dispose();
     super.dispose();
   }
 
   Widget _controlButton(IconData icon, VoidCallback onTap, {bool big = false}) {
     return RemoteFocusable(
-      onTap: onTap,
+      onTap: () {
+        onTap();
+        showControlsTemporarily();
+      },
       borderRadius: BorderRadius.circular(50),
       child: Container(
         width: big ? 64 : 48,
@@ -1358,53 +1573,100 @@ class _SimpleVideoPlayerScreenState extends State<SimpleVideoPlayerScreen> {
 
     return Scaffold(
       backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        elevation: 0,
-        iconTheme: const IconThemeData(color: AppColors.gold),
-        title: Text(widget.title, style: const TextStyle(fontSize: 16, color: AppColors.gold)),
-      ),
-      body: Center(
-        child: _hasError
-            ? const Padding(
-                padding: EdgeInsets.all(24),
-                child: Text(
-                  "تعذر تشغيل هذا الفيديو، جرّب مرة أخرى لاحقاً",
-                  style: TextStyle(color: Colors.white70),
-                  textAlign: TextAlign.center,
+      body: GestureDetector(
+        onTap: toggleControls,
+        child: Stack(
+          children: [
+            Center(
+              child: _hasError
+                  ? const Padding(
+                      padding: EdgeInsets.all(24),
+                      child: Text(
+                        "تعذر تشغيل هذا الفيديو، جرّب مرة أخرى لاحقاً",
+                        style: TextStyle(color: Colors.white70),
+                        textAlign: TextAlign.center,
+                      ),
+                    )
+                  : (controller != null && controller.value.isInitialized)
+                      ? ValueListenableBuilder<VideoPlayerValue>(
+                          valueListenable: controller,
+                          builder: (context, value, child) {
+                            return AspectRatio(
+                              aspectRatio: value.aspectRatio,
+                              child: VideoPlayer(controller),
+                            );
+                          },
+                        )
+                      : Container(color: Colors.black),
+            ),
+            AnimatedOpacity(
+              opacity: controlsVisible ? 1 : 0,
+              duration: const Duration(milliseconds: 250),
+              child: IgnorePointer(
+                ignoring: !controlsVisible,
+                child: SafeArea(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [Colors.black.withOpacity(0.8), Colors.transparent],
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.arrow_back, color: AppColors.gold, size: 24),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                        Expanded(
+                          child: Text(
+                            widget.title,
+                            style: const TextStyle(fontSize: 16, color: AppColors.gold, fontWeight: FontWeight.bold),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-              )
-            : (controller != null && controller.value.isInitialized)
-                ? ValueListenableBuilder<VideoPlayerValue>(
-                    valueListenable: controller,
-                    builder: (context, value, child) {
-                      return Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          AspectRatio(
-                            aspectRatio: value.aspectRatio,
-                            child: VideoPlayer(controller),
+              ),
+            ),
+            if (controller != null && controller.value.isInitialized)
+              ValueListenableBuilder<VideoPlayerValue>(
+                valueListenable: controller,
+                builder: (context, value, child) {
+                  return AnimatedOpacity(
+                    opacity: controlsVisible ? 1 : 0,
+                    duration: const Duration(milliseconds: 250),
+                    child: IgnorePointer(
+                      ignoring: !controlsVisible,
+                      child: Align(
+                        alignment: Alignment.bottomCenter,
+                        child: Padding(
+                          padding: const EdgeInsets.only(bottom: 28),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              _controlButton(Icons.replay_10, () => _seek(-10)),
+                              _controlButton(
+                                value.isPlaying ? Icons.pause : Icons.play_arrow,
+                                () => value.isPlaying ? controller.pause() : controller.play(),
+                                big: true,
+                              ),
+                              _controlButton(Icons.forward_10, () => _seek(10)),
+                            ],
                           ),
-                          Positioned(
-                            bottom: 24,
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                _controlButton(Icons.replay_10, () => _seek(-10)),
-                                _controlButton(
-                                  value.isPlaying ? Icons.pause : Icons.play_arrow,
-                                  () => value.isPlaying ? controller.pause() : controller.play(),
-                                  big: true,
-                                ),
-                                _controlButton(Icons.forward_10, () => _seek(10)),
-                              ],
-                            ),
-                          ),
-                        ],
-                      );
-                    },
-                  )
-                : Container(color: Colors.black),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -1503,13 +1765,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   (route) => false,
                 );
               },
-              icon: const Icon(Icons.logout),
-              label: const Text("تسجيل الخروج", style: TextStyle(fontSize: 15)),
+              icon: const Icon(Icons.logout, color: Colors.white),
+              label: const Text("تسجيل الخروج", style: TextStyle(fontSize: 15, color: Colors.white)),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF7A1010),
+                foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
-                  side: BorderSide(color: AppColors.gold.withOpacity(0.5)),
+                  side: BorderSide(color: AppColors.gold.withOpacity(0.6), width: 1.2),
                 ),
               ),
             ),
