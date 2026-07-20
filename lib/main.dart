@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:video_player/video_player.dart';
+import 'package:intl/intl.dart';
 
 class MyHttpOverrides extends HttpOverrides {
   @override
@@ -30,11 +31,12 @@ class BellaIPTVApp extends StatelessWidget {
       title: APP_NAME,
       debugShowCheckedModeBanner: false,
       theme: ThemeData.dark().copyWith(
-        primaryColor: Colors.deepPurple,
-        scaffoldBackgroundColor: const Color(0xFF121212),
+        scaffoldBackgroundColor: const Color(0xFF14141E),
+        primaryColor: const Color(0xFF8B5CF6),
         colorScheme: const ColorScheme.dark(
-          primary: Colors.deepPurpleAccent,
-          secondary: Colors.amberAccent,
+          primary: Color(0xFF8B5CF6),
+          secondary: Color(0xFFA78BFA),
+          surface: Color(0xFF1E1E2D),
         ),
       ),
       home: const LoginPage(),
@@ -42,7 +44,7 @@ class BellaIPTVApp extends StatelessWidget {
   }
 }
 
-// --- شاشة تسجيل الدخول ---
+// --- 1. شاشة تسجيل الدخول ---
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
 
@@ -61,9 +63,7 @@ class _LoginPageState extends State<LoginPage> {
     final password = _passwordController.text.trim();
 
     if (username.isEmpty || password.isEmpty) {
-      setState(() {
-        _errorMessage = "يرجى إدخال اسم المستخدم وكلمة السر";
-      });
+      setState(() => _errorMessage = "يرجى إدخال اسم المستخدم وكلمة السر");
       return;
     }
 
@@ -83,45 +83,35 @@ class _LoginPageState extends State<LoginPage> {
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         if (data is Map && data.containsKey('user_info')) {
-          final authStatus = data['user_info']['status'];
+          final userInfo = data['user_info'];
+          final authStatus = userInfo['status'];
           if (authStatus == 'Active' || authStatus == 'active' || authStatus == '1') {
             if (!mounted) return;
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
-                builder: (context) => DashboardPage(
+                builder: (context) => HomeScreen(
                   username: username,
                   password: password,
+                  expDate: userInfo['exp_date'] != null
+                      ? DateTime.fromMillisecondsSinceEpoch(
+                          int.parse(userInfo['exp_date'].toString()) * 1000)
+                      : null,
                 ),
               ),
             );
             return;
           } else {
-            setState(() {
-              _errorMessage = "الحساب غير نشط أو الاشتراك منتهي";
-            });
+            setState(() => _errorMessage = "الحساب غير نشط أو الاشتراك منتهي");
             return;
           }
-        } else {
-          setState(() {
-            _errorMessage = "اسم المستخدم أو كلمة السر غير صحيحة";
-          });
-          return;
         }
       }
-      setState(() {
-        _errorMessage = "فشل الاتصال: السيرفر رد بكود (${response.statusCode})";
-      });
+      setState(() => _errorMessage = "بيانات الدخول غير صحيحة");
     } catch (e) {
-      setState(() {
-        _errorMessage = "تعذر الاتصال بالسيرفر. تحقق من البيانات أو حالة الاشتراك";
-      });
+      setState(() => _errorMessage = "تعذر الاتصال بالسيرفر، تأكد من الشبكة");
     } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -129,58 +119,69 @@ class _LoginPageState extends State<LoginPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
+        child: Container(
+          width: 420,
+          padding: const EdgeInsets.all(32),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1E1E2D),
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: const [BoxShadow(color: Colors.black54, blurRadius: 20)],
+          ),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.tv_rounded, size: 90, color: Colors.deepPurpleAccent),
-              const SizedBox(height: 10),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF8B5CF6).withOpacity(0.2),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.tv, size: 60, color: Color(0xFF8B5CF6)),
+              ),
+              const SizedBox(height: 16),
               const Text(
                 APP_NAME,
-                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+                style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Colors.white),
               ),
-              const SizedBox(height: 30),
+              const SizedBox(height: 24),
               TextField(
                 controller: _usernameController,
-                decoration: const InputDecoration(
-                  labelText: 'اسم المستخدم (Username)',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.person),
+                decoration: InputDecoration(
+                  labelText: 'Username',
+                  filled: true,
+                  fillColor: const Color(0xFF14141E),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  prefixIcon: const Icon(Icons.person, color: Color(0xFF8B5CF6)),
                 ),
               ),
-              const SizedBox(height: 15),
+              const SizedBox(height: 16),
               TextField(
                 controller: _passwordController,
                 obscureText: true,
-                decoration: const InputDecoration(
-                  labelText: 'كلمة السر (Password)',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.lock),
+                decoration: InputDecoration(
+                  labelText: 'Password',
+                  filled: true,
+                  fillColor: const Color(0xFF14141E),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  prefixIcon: const Icon(Icons.lock, color: Color(0xFF8B5CF6)),
                 ),
               ),
               const SizedBox(height: 20),
               if (_errorMessage.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8.0),
-                  child: Text(
-                    _errorMessage,
-                    style: const TextStyle(color: Colors.redAccent, fontSize: 16),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-              const SizedBox(height: 10),
+                Text(_errorMessage, style: const TextStyle(color: Colors.redAccent)),
+              const SizedBox(height: 16),
               SizedBox(
                 width: double.infinity,
                 height: 50,
                 child: ElevatedButton(
                   onPressed: _isLoading ? null : _login,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.deepPurpleAccent,
+                    backgroundColor: const Color(0xFF8B5CF6),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                   child: _isLoading
                       ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text('تسجيل الدخول', style: TextStyle(fontSize: 18)),
+                      : const Text('LOG IN', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                 ),
               ),
             ],
@@ -191,158 +192,432 @@ class _LoginPageState extends State<LoginPage> {
   }
 }
 
-// --- الشاشة الرئيسية (3 أقسام: Live / Movies / Series) ---
-class DashboardPage extends StatelessWidget {
+// --- 2. الشاشة الرئيسية (HOME SCREEN) ---
+class HomeScreen extends StatelessWidget {
   final String username;
   final String password;
+  final DateTime? expDate;
 
-  const DashboardPage({super.key, required this.username, required this.password});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text(APP_NAME),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => const LoginPage()),
-              );
-            },
-          )
-        ],
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: GridView.count(
-          crossAxisCount: MediaQuery.of(context).orientation == Orientation.landscape ? 3 : 1,
-          crossAxisSpacing: 20,
-          mainAxisSpacing: 20,
-          children: [
-            _buildCategoryCard(
-              context,
-              title: "LIVE TV\nبث مباشر",
-              icon: Icons.live_tv_rounded,
-              color: Colors.redAccent,
-              action: "get_live_streams",
-              type: "live",
-            ),
-            _buildCategoryCard(
-              context,
-              title: "MOVIES\nأفلام",
-              icon: Icons.movie_rounded,
-              color: Colors.blueAccent,
-              action: "get_vod_streams",
-              type: "movie",
-            ),
-            _buildCategoryCard(
-              context,
-              title: "SERIES\nمسلسلات",
-              icon: Icons.tv_sharp,
-              color: Colors.greenAccent,
-              action: "get_series",
-              type: "series",
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCategoryCard(
-    BuildContext context, {
-    required String title,
-    required IconData icon,
-    required Color color,
-    required String action,
-    required String type,
-  }) {
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => ContentListPage(
-              username: username,
-              password: password,
-              action: action,
-              title: title.replaceAll('\n', ' - '),
-              type: type,
-            ),
-          ),
-        );
-      },
-      child: Card(
-        color: const Color(0xFF1E1E2C),
-        elevation: 8,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 70, color: color),
-            const SizedBox(height: 15),
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// --- شاشة عرض القنوات / الأفلام / المسلسلات ---
-class ContentListPage extends StatefulWidget {
-  final String username;
-  final String password;
-  final String action;
-  final String title;
-  final String type;
-
-  const ContentListPage({
+  const HomeScreen({
     super.key,
     required this.username,
     required this.password,
-    required this.action,
-    required String title,
-    required this.type,
-  }) : title = title;
+    this.expDate,
+  });
 
   @override
-  State<ContentListPage> createState() => _ContentListPageState();
+  Widget build(BuildContext context) {
+    final nowStr = DateFormat('MMM dd, yyyy - hh:mm a').format(DateTime.now());
+    final expStr = expDate != null ? DateFormat('dd MMM, yyyy').format(expDate!) : 'Unlimited';
+
+    return Scaffold(
+      body: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF8B5CF6),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(Icons.tv, color: Colors.white, size: 24),
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      APP_NAME,
+                      style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+                Column(
+                  crossAxisAlignment: CrossAlignment.end,
+                  children: [
+                    Text(nowStr, style: const TextStyle(color: Colors.white70, fontSize: 13)),
+                    Text("Expiration: $expStr", style: const TextStyle(color: Colors.white38, fontSize: 11)),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            Expanded(
+              child: Row(
+                children: [
+                  Expanded(
+                    flex: 3,
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: _buildMainCategoryCard(
+                            context,
+                            title: "LIVE TV",
+                            icon: Icons.sensors,
+                            color: const Color(0xFF8B5CF6),
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => LiveChannelsScreen(username: username, password: password),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: _buildMainCategoryCard(
+                            context,
+                            title: "Movies",
+                            icon: Icons.movie_filter,
+                            color: const Color(0xFF1E1E2D),
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => VODCategoryScreen(
+                                  username: username,
+                                  password: password,
+                                  type: "movie",
+                                  title: "MOVIES",
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: _buildMainCategoryCard(
+                            context,
+                            title: "Series",
+                            icon: Icons.video_library,
+                            color: const Color(0xFF1E1E2D),
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => VODCategoryScreen(
+                                  username: username,
+                                  password: password,
+                                  type: "series",
+                                  title: "SERIES",
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 20),
+                  SizedBox(
+                    width: 160,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        _buildSideMenuItem(Icons.replay, "Catch up"),
+                        const SizedBox(height: 12),
+                        _buildSideMenuItem(Icons.grid_view, "Multi-Screen"),
+                        const SizedBox(height: 12),
+                        _buildSideMenuItem(Icons.settings, "Settings"),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMainCategoryCard(BuildContext context,
+      {required String title, required IconData icon, required Color color, required VoidCallback onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 10)],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 64, color: Colors.white),
+            const SizedBox(height: 16),
+            Text(title, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSideMenuItem(IconData icon, String title) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E1E2D),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: Colors.white70, size: 20),
+          const SizedBox(width: 10),
+          Text(title, style: const TextStyle(color: Colors.white70, fontSize: 13)),
+        ],
+      ),
+    );
+  }
 }
 
-class _ContentListPageState extends State<ContentListPage> {
-  List<dynamic> _items = [];
+// --- 3. شاشة البث المباشر (المجموعات على الشمال + القنوات في المنتصف + المشغل على اليمين) ---
+class LiveChannelsScreen extends StatefulWidget {
+  final String username;
+  final String password;
+
+  const LiveChannelsScreen({super.key, required this.username, required this.password});
+
+  @override
+  State<LiveChannelsScreen> createState() => _LiveChannelsScreenState();
+}
+
+class _LiveChannelsScreenState extends State<LiveChannelsScreen> {
+  List<dynamic> _categories = [];
+  List<dynamic> _allChannels = [];
+  List<dynamic> _filteredChannels = [];
   bool _isLoading = true;
+  String _selectedCategoryId = 'all';
+  String _selectedChannelTitle = '';
+  VideoPlayerController? _videoController;
 
   @override
   void initState() {
     super.initState();
-    _fetchData();
+    _loadData();
   }
 
-  Future<void> _fetchData() async {
-    final url = Uri.parse(
-        "$SERVER_URL/player_api.php?username=${widget.username}&password=${widget.password}&action=${widget.action}");
+  Future<void> _loadData() async {
+    final catUrl = Uri.parse(
+        "$SERVER_URL/player_api.php?username=${widget.username}&password=${widget.password}&action=get_live_categories");
+    final chUrl = Uri.parse(
+        "$SERVER_URL/player_api.php?username=${widget.username}&password=${widget.password}&action=get_live_streams");
+
     try {
-      final response = await http.get(url, headers: {"User-Agent": "IPTVSmarters/1.0"});
-      if (response.statusCode == 200) {
+      final catRes = await http.get(catUrl, headers: {"User-Agent": "IPTVSmarters/1.0"});
+      final chRes = await http.get(chUrl, headers: {"User-Agent": "IPTVSmarters/1.0"});
+
+      if (catRes.statusCode == 200 && chRes.statusCode == 200) {
+        final cats = json.decode(catRes.body);
+        final chs = json.decode(chRes.body);
+
         setState(() {
-          _items = json.decode(response.body);
+          _categories = cats is List ? cats : [];
+          _allChannels = chs is List ? chs : [];
+          _filteredChannels = _allChannels;
+          _isLoading = false;
+        });
+
+        if (_filteredChannels.isNotEmpty) {
+          _playChannel(_filteredChannels[0]);
+        }
+      }
+    } catch (e) {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  void _filterCategory(String catId) {
+    setState(() {
+      _selectedCategoryId = catId;
+      if (catId == 'all') {
+        _filteredChannels = _allChannels;
+      } else {
+        _filteredChannels = _allChannels.where((c) => c['category_id'].toString() == catId).toList();
+      }
+    });
+    if (_filteredChannels.isNotEmpty) {
+      _playChannel(_filteredChannels[0]);
+    }
+  }
+
+  void _playChannel(dynamic channel) async {
+    final streamId = channel['stream_id'];
+    final url = "$SERVER_URL/live/${widget.username}/${widget.password}/$streamId.ts";
+
+    if (_videoController != null) {
+      await _videoController!.dispose();
+    }
+
+    setState(() {
+      _selectedChannelTitle = channel['name'] ?? '';
+    });
+
+    _videoController = VideoPlayerController.networkUrl(
+      Uri.parse(url),
+      httpHeaders: {"User-Agent": "IPTVSmarters/1.0"},
+    );
+
+    await _videoController!.initialize();
+    setState(() {});
+    _videoController!.play();
+  }
+
+  @override
+  void dispose() {
+    _videoController?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text(_selectedChannelTitle.isEmpty ? "Live TV" : _selectedChannelTitle)),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Row(
+              children: [
+                // 1. القائمة الأولى: المجموعات (Categories) على اليسار
+                SizedBox(
+                  width: 220,
+                  child: Container(
+                    color: const Color(0xFF1E1E2D),
+                    child: ListView.builder(
+                      itemCount: _categories.length + 1,
+                      itemBuilder: (context, index) {
+                        if (index == 0) {
+                          final isSel = _selectedCategoryId == 'all';
+                          return ListTile(
+                            tileColor: isSel ? const Color(0xFF8B5CF6) : null,
+                            title: const Text("كل المجموعات (ALL)", style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                            onTap: () => _filterCategory('all'),
+                          );
+                        }
+                        final cat = _categories[index - 1];
+                        final catId = cat['category_id'].toString();
+                        final isSel = _selectedCategoryId == catId;
+                        return ListTile(
+                          tileColor: isSel ? const Color(0xFF8B5CF6) : null,
+                          title: Text(cat['category_name'] ?? '', style: const TextStyle(fontSize: 13)),
+                          onTap: () => _filterCategory(catId),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+                // 2. القائمة الثانية: قنوات المجموعة المختارة
+                SizedBox(
+                  width: 250,
+                  child: ListView.builder(
+                    itemCount: _filteredChannels.length,
+                    itemBuilder: (context, index) {
+                      final ch = _filteredChannels[index];
+                      final isSelected = ch['name'] == _selectedChannelTitle;
+                      return ListTile(
+                        tileColor: isSelected ? const Color(0xFF8B5CF6).withOpacity(0.3) : null,
+                        leading: const Icon(Icons.live_tv, color: Colors.white70, size: 20),
+                        title: Text(ch['name'] ?? '', style: const TextStyle(fontSize: 12)),
+                        onTap: () => _playChannel(ch),
+                      );
+                    },
+                  ),
+                ),
+                // 3. شاشة مشغل الفيديو المباشر على اليمين
+                Expanded(
+                  child: Container(
+                    color: Colors.black,
+                    child: _videoController != null && _videoController!.value.isInitialized
+                        ? AspectRatio(
+                            aspectRatio: _videoController!.value.aspectRatio,
+                            child: VideoPlayer(_videoController!),
+                          )
+                        : const Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                CircularProgressIndicator(color: Color(0xFF8B5CF6)),
+                                SizedBox(height: 12),
+                                Text("جاري تحميل البث...", style: TextStyle(color: Colors.white54)),
+                              ],
+                            ),
+                          ),
+                  ),
+                ),
+              ],
+            ),
+    );
+  }
+}
+
+// --- 4. شاشة الأفلام والمسلسلات مع المجموعات (CATEGORIES + CONTENT GRID) ---
+class VODCategoryScreen extends StatefulWidget {
+  final String username;
+  final String password;
+  final String type; // 'movie' or 'series'
+  final String title;
+
+  const VODCategoryScreen({
+    super.key,
+    required this.username,
+    required this.password,
+    required this.type,
+    required this.title,
+  });
+
+  @override
+  State<VODCategoryScreen> createState() => _VODCategoryScreenState();
+}
+
+class _VODCategoryScreenState extends State<VODCategoryScreen> {
+  List<dynamic> _categories = [];
+  List<dynamic> _allItems = [];
+  List<dynamic> _filteredItems = [];
+  bool _isLoading = true;
+  String _selectedCategoryId = 'all';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadVODData();
+  }
+
+  Future<void> _loadVODData() async {
+    final catAction = widget.type == "movie" ? "get_vod_categories" : "get_series_categories";
+    final itemAction = widget.type == "movie" ? "get_vod_streams" : "get_series";
+
+    final catUrl = Uri.parse("$SERVER_URL/player_api.php?username=${widget.username}&password=${widget.password}&action=$catAction");
+    final itemUrl = Uri.parse("$SERVER_URL/player_api.php?username=${widget.username}&password=${widget.password}&action=$itemAction");
+
+    try {
+      final catRes = await http.get(catUrl, headers: {"User-Agent": "IPTVSmarters/1.0"});
+      final itemRes = await http.get(itemUrl, headers: {"User-Agent": "IPTVSmarters/1.0"});
+
+      if (catRes.statusCode == 200 && itemRes.statusCode == 200) {
+        final cats = json.decode(catRes.body);
+        final items = json.decode(itemRes.body);
+
+        setState(() {
+          _categories = cats is List ? cats : [];
+          _allItems = items is List ? items : [];
+          _filteredItems = _allItems;
           _isLoading = false;
         });
       }
     } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
+      setState(() => _isLoading = false);
     }
+  }
+
+  void _filterCategory(String catId) {
+    setState(() {
+      _selectedCategoryId = catId;
+      if (catId == 'all') {
+        _filteredItems = _allItems;
+      } else {
+        _filteredItems = _allItems.where((i) => i['category_id'].toString() == catId).toList();
+      }
+    });
   }
 
   @override
@@ -351,143 +626,86 @@ class _ContentListPageState extends State<ContentListPage> {
       appBar: AppBar(title: Text(widget.title)),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : _items.isEmpty
-              ? const Center(child: Text("لا توجد عناصر متاحة في هذا القسم"))
-              : ListView.builder(
-                  itemCount: _items.length,
-                  itemBuilder: (context, index) {
-                    final item = _items[index];
-                    final streamId = item['stream_id'] ?? item['series_id'];
-                    final name = item['name'] ?? 'بدون عنوان';
-                    final iconUrl = item['stream_icon'] ?? item['cover'] ?? '';
-
-                    String streamUrl = "";
-                    if (widget.type == "live") {
-                      streamUrl = "$SERVER_URL/live/${widget.username}/${widget.password}/$streamId.ts";
-                    } else if (widget.type == "movie") {
-                      final ext = item['container_extension'] ?? 'mp4';
-                      streamUrl = "$SERVER_URL/movie/${widget.username}/${widget.password}/$streamId.$ext";
-                    }
-
-                    return ListTile(
-                      leading: iconUrl.isNotEmpty
-                          ? Image.network(
-                              iconUrl,
-                              width: 50,
-                              height: 50,
-                              fit: BoxFit.cover,
-                              errorBuilder: (c, e, s) => const Icon(Icons.play_circle_outline, size: 40),
-                            )
-                          : const Icon(Icons.play_circle_outline, size: 40),
-                      title: Text(name),
-                      subtitle: widget.type == "movie" ? Text("فلم / VOD") : null,
-                      onTap: () {
-                        if (widget.type != "series" && streamUrl.isNotEmpty) {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => PlayerScreen(
-                                streamUrl: streamUrl,
-                                title: name,
-                              ),
-                            ),
+          : Row(
+              children: [
+                // 1. المجموعات على الجنب الشمال
+                SizedBox(
+                  width: 240,
+                  child: Container(
+                    color: const Color(0xFF1E1E2D),
+                    child: ListView.builder(
+                      itemCount: _categories.length + 1,
+                      itemBuilder: (context, index) {
+                        if (index == 0) {
+                          final isSel = _selectedCategoryId == 'all';
+                          return ListTile(
+                            tileColor: isSel ? const Color(0xFF8B5CF6) : null,
+                            title: const Text("الكل (ALL)", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                            onTap: () => _filterCategory('all'),
                           );
                         }
+                        final cat = _categories[index - 1];
+                        final catId = cat['category_id'].toString();
+                        final isSel = _selectedCategoryId == catId;
+                        return ListTile(
+                          tileColor: isSel ? const Color(0xFF8B5CF6) : null,
+                          title: Text(cat['category_name'] ?? '', style: const TextStyle(fontSize: 13)),
+                          onTap: () => _filterCategory(catId),
+                        );
                       },
-                    );
-                  },
-                ),
-    );
-  }
-}
-
-// --- مشغل الفيديو المطور بدعم الـ Headers لفك الحظر ---
-class PlayerScreen extends StatefulWidget {
-  final String streamUrl;
-  final String title;
-
-  const PlayerScreen({super.key, required this.streamUrl, required this.title});
-
-  @override
-  State<PlayerScreen> createState() => _PlayerScreenState();
-}
-
-class _PlayerScreenState extends State<PlayerScreen> {
-  late VideoPlayerController _controller;
-  bool _isInitialized = false;
-  bool _hasError = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _initPlayer();
-  }
-
-  Future<void> _initPlayer() async {
-    _controller = VideoPlayerController.networkUrl(
-      Uri.parse(widget.streamUrl),
-      httpHeaders: {
-        "User-Agent": "IPTVSmarters/1.0",
-        "Accept": "*/*",
-      },
-    );
-
-    try {
-      await _controller.initialize();
-      setState(() {
-        _isInitialized = true;
-      });
-      _controller.play();
-    } catch (e) {
-      setState(() {
-        _hasError = true;
-      });
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(widget.title)),
-      backgroundColor: Colors.black,
-      body: Center(
-        child: _hasError
-            ? Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.error_outline, size: 60, color: Colors.red),
-                  const SizedBox(height: 10),
-                  const Text("تعذر تشغيل هذا البث، قد يكون السيرفر أو القناة متوقفة حالياً"),
-                  ElevatedButton(
-                    onPressed: () {
-                      setState(() {
-                        _hasError = false;
-                      });
-                      _initPlayer();
-                    },
-                    child: const Text("إعادة المحاولة"),
-                  )
-                ],
-              )
-            : _isInitialized
-                ? AspectRatio(
-                    aspectRatio: _controller.value.aspectRatio,
-                    child: Stack(
-                      alignment: Alignment.bottomCenter,
-                      children: [
-                        VideoPlayer(_controller),
-                        VideoProgressIndicator(_controller, allowScrubbing: true),
-                      ],
                     ),
-                  )
-                : const CircularProgressIndicator(),
-      ),
+                  ),
+                ),
+                // 2. المحتوى (الأفلام أو المسلسلات) الخاص بالمجموعة المحددة على اليمين
+                Expanded(
+                  child: _filteredItems.isEmpty
+                      ? const Center(child: Text("لا يوجـد محتوى داخل هذه المجموعة"))
+                      : GridView.builder(
+                          padding: const EdgeInsets.all(16),
+                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 4,
+                            childAspectRatio: 0.7,
+                            crossAxisSpacing: 12,
+                            mainAxisSpacing: 12,
+                          ),
+                          itemCount: _filteredItems.length,
+                          itemBuilder: (context, index) {
+                            final item = _filteredItems[index];
+                            final cover = item['stream_icon'] ?? item['cover'] ?? '';
+                            final name = item['name'] ?? '';
+
+                            return Container(
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF1E1E2D),
+                                borderRadius: BorderRadius.circular(12),
+                                image: cover.isNotEmpty
+                                    ? DecorationImage(image: NetworkImage(cover), fit: BoxFit.cover)
+                                    : null,
+                              ),
+                              child: Container(
+                                alignment: Alignment.bottomCenter,
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(12),
+                                  gradient: LinearGradient(
+                                    colors: [Colors.black.withOpacity(0.85), Colors.transparent],
+                                    begin: Alignment.bottomCenter,
+                                    end: Alignment.topCenter,
+                                  ),
+                                ),
+                                child: Text(
+                                  name,
+                                  maxLines: 2,
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                ),
+              ],
+            ),
     );
   }
 }
