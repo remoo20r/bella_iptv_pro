@@ -930,13 +930,16 @@ class _LiveChannelsScreenState extends State<LiveChannelsScreen> with AutoHideCo
 
   Widget _buildVideoArea() {
     return Container(
+      width: double.infinity,
+      height: double.infinity,
       color: Colors.black,
+      alignment: Alignment.center,
       child: (_videoController != null && _videoController!.value.isInitialized)
           ? AspectRatio(
               aspectRatio: _videoController!.value.aspectRatio,
               child: VideoPlayer(_videoController!),
             )
-          : Container(color: Colors.black),
+          : const SizedBox.shrink(),
     );
   }
 
@@ -1419,8 +1422,12 @@ class _SeriesDetailScreenState extends State<SeriesDetailScreen> {
                                 final ep = episodes[index];
                                 final epNum = (ep['episode_num'] ?? (index + 1)).toString();
                                 final epTitle = (ep['title'] ?? 'الحلقة $epNum').toString();
-                                final cover =
+                                final epOwnCover =
                                     ep['info'] is Map ? (ep['info']['movie_image'] ?? '').toString() : '';
+                                final seriesCover =
+                                    (widget.seriesItem['cover'] ?? widget.seriesItem['stream_icon'] ?? '')
+                                        .toString();
+                                final cover = epOwnCover.isNotEmpty ? epOwnCover : seriesCover;
 
                                 return RemoteFocusable(
                                   onTap: () => _playEpisode(ep),
@@ -1432,7 +1439,12 @@ class _SeriesDetailScreenState extends State<SeriesDetailScreen> {
                                           borderRadius: BorderRadius.circular(12),
                                           border: Border.all(color: AppColors.gold.withOpacity(0.3)),
                                           image: cover.isNotEmpty
-                                              ? DecorationImage(image: NetworkImage(cover), fit: BoxFit.cover)
+                                              ? DecorationImage(
+                                                  image: NetworkImage(cover),
+                                                  fit: BoxFit.cover,
+                                                  colorFilter: ColorFilter.mode(
+                                                      Colors.black.withOpacity(0.25), BlendMode.darken),
+                                                )
                                               : null,
                                         ),
                                         child: cover.isEmpty
@@ -1455,6 +1467,24 @@ class _SeriesDetailScreenState extends State<SeriesDetailScreen> {
                                               )
                                             : null,
                                       ),
+                                      if (cover.isNotEmpty)
+                                        Positioned(
+                                          top: 6,
+                                          right: 6,
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                            decoration: BoxDecoration(
+                                              color: AppColors.red,
+                                              borderRadius: BorderRadius.circular(8),
+                                              border: Border.all(color: AppColors.gold, width: 1),
+                                            ),
+                                            child: Text(
+                                              epNum,
+                                              style: const TextStyle(
+                                                  fontSize: 13, fontWeight: FontWeight.bold, color: Colors.white),
+                                            ),
+                                          ),
+                                        ),
                                       Positioned(
                                         left: 0,
                                         right: 0,
