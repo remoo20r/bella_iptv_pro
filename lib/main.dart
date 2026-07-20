@@ -3,7 +3,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:video_player/video_player.dart';
-import 'package:intl/intl.dart';
 
 class MyHttpOverrides extends HttpOverrides {
   @override
@@ -87,16 +86,22 @@ class _LoginPageState extends State<LoginPage> {
           final authStatus = userInfo['status'];
           if (authStatus == 'Active' || authStatus == 'active' || authStatus == '1') {
             if (!mounted) return;
+            
+            String expFormatted = 'Unlimited';
+            if (userInfo['exp_date'] != null && userInfo['exp_date'].toString().isNotEmpty) {
+              try {
+                final dt = DateTime.fromMillisecondsSinceEpoch(int.parse(userInfo['exp_date'].toString()) * 1000);
+                expFormatted = "${dt.day}/${dt.month}/${dt.year}";
+              } catch (_) {}
+            }
+
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
                 builder: (context) => HomeScreen(
                   username: username,
                   password: password,
-                  expDate: userInfo['exp_date'] != null
-                      ? DateTime.fromMillisecondsSinceEpoch(
-                          int.parse(userInfo['exp_date'].toString()) * 1000)
-                      : null,
+                  expDateStr: expFormatted,
                 ),
               ),
             );
@@ -196,19 +201,19 @@ class _LoginPageState extends State<LoginPage> {
 class HomeScreen extends StatelessWidget {
   final String username;
   final String password;
-  final DateTime? expDate;
+  final String expDateStr;
 
   const HomeScreen({
     super.key,
     required this.username,
     required this.password,
-    this.expDate,
+    required this.expDateStr,
   });
 
   @override
   Widget build(BuildContext context) {
-    final nowStr = DateFormat('MMM dd, yyyy - hh:mm a').format(DateTime.now());
-    final expStr = expDate != null ? DateFormat('dd MMM, yyyy').format(expDate!) : 'Unlimited';
+    final now = DateTime.now();
+    final nowStr = "${now.day}/${now.month}/${now.year}";
 
     return Scaffold(
       body: Padding(
@@ -239,7 +244,7 @@ class HomeScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAlignment.end,
                   children: [
                     Text(nowStr, style: const TextStyle(color: Colors.white70, fontSize: 13)),
-                    Text("Expiration: $expStr", style: const TextStyle(color: Colors.white38, fontSize: 11)),
+                    Text("Expiration: $expDateStr", style: const TextStyle(color: Colors.white38, fontSize: 11)),
                   ],
                 ),
               ],
@@ -372,7 +377,7 @@ class HomeScreen extends StatelessWidget {
   }
 }
 
-// --- 3. شاشة البث المباشر (المجموعات على الشمال + القنوات في المنتصف + المشغل على اليمين) ---
+// --- 3. شاشة البث المباشر الموزعة بالـ Categories ---
 class LiveChannelsScreen extends StatefulWidget {
   final String username;
   final String password;
@@ -478,7 +483,6 @@ class _LiveChannelsScreenState extends State<LiveChannelsScreen> {
           ? const Center(child: CircularProgressIndicator())
           : Row(
               children: [
-                // 1. القائمة الأولى: المجموعات (Categories) على اليسار
                 SizedBox(
                   width: 220,
                   child: Container(
@@ -506,7 +510,6 @@ class _LiveChannelsScreenState extends State<LiveChannelsScreen> {
                     ),
                   ),
                 ),
-                // 2. القائمة الثانية: قنوات المجموعة المختارة
                 SizedBox(
                   width: 250,
                   child: ListView.builder(
@@ -523,7 +526,6 @@ class _LiveChannelsScreenState extends State<LiveChannelsScreen> {
                     },
                   ),
                 ),
-                // 3. شاشة مشغل الفيديو المباشر على اليمين
                 Expanded(
                   child: Container(
                     color: Colors.black,
@@ -550,11 +552,11 @@ class _LiveChannelsScreenState extends State<LiveChannelsScreen> {
   }
 }
 
-// --- 4. شاشة الأفلام والمسلسلات مع المجموعات (CATEGORIES + CONTENT GRID) ---
+// --- 4. شاشة الأفلام والمسلسلات مع المجموعات ---
 class VODCategoryScreen extends StatefulWidget {
   final String username;
   final String password;
-  final String type; // 'movie' or 'series'
+  final String type;
   final String title;
 
   const VODCategoryScreen({
@@ -628,7 +630,6 @@ class _VODCategoryScreenState extends State<VODCategoryScreen> {
           ? const Center(child: CircularProgressIndicator())
           : Row(
               children: [
-                // 1. المجموعات على الجنب الشمال
                 SizedBox(
                   width: 240,
                   child: Container(
@@ -656,7 +657,6 @@ class _VODCategoryScreenState extends State<VODCategoryScreen> {
                     ),
                   ),
                 ),
-                // 2. المحتوى (الأفلام أو المسلسلات) الخاص بالمجموعة المحددة على اليمين
                 Expanded(
                   child: _filteredItems.isEmpty
                       ? const Center(child: Text("لا يوجـد محتوى داخل هذه المجموعة"))
