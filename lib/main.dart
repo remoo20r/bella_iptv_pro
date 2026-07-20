@@ -1,8 +1,11 @@
-import 'dart:convert';
+٩٢٢٣٣٧٢٠٣٦٨٥٤٧٧٥٨٠٧import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:video_player/video_player.dart';
+
+// --- القائمة العامة لحفظ المفضلة في الذاكرة ---
+final List<Map<String, dynamic>> globalFavorites = [];
 
 class MyHttpOverrides extends HttpOverrides {
   @override
@@ -42,7 +45,7 @@ class BellaIPTVApp extends StatelessWidget {
   }
 }
 
-// --- 🎨 خلفية التطبيق المخصصة المطابقة للصور ---
+// --- 🎨 خلفية التطبيق المخصصة ---
 Widget buildCustomBackground(Widget child) {
   return Container(
     decoration: const BoxDecoration(
@@ -51,16 +54,15 @@ Widget buildCustomBackground(Widget child) {
         end: Alignment.bottomRight,
         stops: [0.1, 0.4, 0.7, 1.0],
         colors: [
-          Color(0xFF2B0054), // بنفسجي غامق
-          Color(0xFF000000), // أسود
-          Color(0xFF5E0000), // أحمر غامق
-          Color(0xFF000000), // أسود
+          Color(0xFF2B0054),
+          Color(0xFF000000),
+          Color(0xFF5E0000),
+          Color(0xFF000000),
         ],
       ),
     ),
     child: Stack(
       children: [
-        // تأثير خطوط الإضاءة المائلة
         Positioned.fill(
           child: CustomPaint(
             painter: DiagonalLinesPainter(),
@@ -94,7 +96,7 @@ class DiagonalLinesPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
-// --- 1. شاشة تسجيل الدخول الجديدة (متطابقة مع صورة 26) ---
+// --- 1. شاشة تسجيل الدخول ---
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
 
@@ -174,7 +176,6 @@ class _LoginPageState extends State<LoginPage> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // اللوجو
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
@@ -189,7 +190,6 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                 ),
                 const SizedBox(height: 40),
-                // حقل اليوزر
                 Container(
                   color: Colors.white.withOpacity(0.8),
                   child: TextField(
@@ -205,7 +205,6 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                 ),
                 const SizedBox(height: 2),
-                // حقل الباسورد
                 Container(
                   color: Colors.lightBlue.withOpacity(0.9),
                   child: TextField(
@@ -223,7 +222,6 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                 ),
                 const SizedBox(height: 2),
-                // زر الدخول
                 SizedBox(
                   width: double.infinity,
                   height: 50,
@@ -251,7 +249,7 @@ class _LoginPageState extends State<LoginPage> {
   }
 }
 
-// --- 2. الشاشة الرئيسية الجديدة (متطابقة مع صورة 24) ---
+// --- 2. الشاشة الرئيسية ---
 class HomeScreen extends StatelessWidget {
   final String username;
   final String password;
@@ -265,7 +263,6 @@ class HomeScreen extends StatelessWidget {
       body: buildCustomBackground(
         Column(
           children: [
-            // الشريط العلوي (اللوجو والأيقونات)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
               child: Row(
@@ -277,27 +274,23 @@ class HomeScreen extends StatelessWidget {
                     child: const Text("IPTV\nPRO", textAlign: TextAlign.center, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white)),
                   ),
                   Row(
-                    children: [
-                      const Icon(Icons.search, size: 28),
-                      const SizedBox(width: 15),
-                      const Icon(Icons.sports_soccer, size: 28),
-                      const SizedBox(width: 15),
-                      const Icon(Icons.notifications_active, size: 28, color: Colors.amber),
+                    children: const [
+                      Icon(Icons.search, size: 28),
+                      SizedBox(width: 15),
+                      Icon(Icons.sports_soccer, size: 28),
+                      SizedBox(width: 15),
+                      Icon(Icons.notifications_active, size: 28, color: Colors.amber),
                     ],
                   )
                 ],
               ),
             ),
             const Spacer(),
-            // الأقسام الرئيسية (دوائر كبيرة)
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 _buildMainCircleIcon(context, title: "LIVE TV", icon: Icons.tv, onTap: () {
                   Navigator.push(context, MaterialPageRoute(builder: (_) => LiveChannelsScreen(username: username, password: password)));
-                }),
-                _buildMainCircleIcon(context, title: "TV GUIDE", icon: Icons.menu_book, onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("جاري تجهيز قسم دليل القنوات")));
                 }),
                 _buildMainCircleIcon(context, title: "MOVIES", icon: Icons.movie_creation, onTap: () {
                   Navigator.push(context, MaterialPageRoute(builder: (_) => VODCategoryScreen(username: username, password: password, type: "movie", title: "MOVIES")));
@@ -308,20 +301,30 @@ class HomeScreen extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 30),
-            // الأقسام الفرعية (أيقونات صغيرة تحت)
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                _buildSubIcon(context, title: "FAVORITES", icon: Icons.favorite, color: Colors.red),
-                _buildSubIcon(context, title: "MULTI", icon: Icons.grid_view, color: Colors.brown),
-                _buildSubIcon(context, title: "CATCH UP", icon: Icons.replay, color: Colors.blue),
-                _buildSubIcon(context, title: "RADIO", icon: Icons.radio, color: Colors.grey),
-                _buildSubIcon(context, title: "ACCOUNT", icon: Icons.person, color: Colors.redAccent),
+                _buildSubIcon(context, title: "FAVORITES", icon: Icons.favorite, color: Colors.red, onTap: () {
+                   Navigator.push(context, MaterialPageRoute(builder: (_) => FavoritesScreen(username: username, password: password)));
+                }),
+                _buildSubIcon(context, title: "ACCOUNT", icon: Icons.person, color: Colors.redAccent, onTap: () {
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Expiration: $expDateStr")));
+                }),
                 _buildSubIcon(context, title: "SETTINGS", icon: Icons.settings, color: Colors.amber, onTap: () {
                   showDialog(context: context, builder: (c) => AlertDialog(
-                    title: const Text("Settings"),
-                    content: const Text("قائمة الإعدادات تعمل الآن! سيتم ربطها قريباً بالخيارات المتقدمة."),
-                    actions: [TextButton(onPressed: () => Navigator.pop(c), child: const Text("OK"))],
+                    backgroundColor: Colors.black87,
+                    title: const Text("الإعدادات (Settings)", style: TextStyle(color: Colors.white)),
+                    content: const Text("اختر الإجراء المطلوب", style: TextStyle(color: Colors.white70)),
+                    actions: [
+                      TextButton(
+                        onPressed: () {
+                          Navigator.pop(c);
+                          Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LoginPage()));
+                        },
+                        child: const Text("تسجيل الخروج (Logout)", style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
+                      ),
+                      TextButton(onPressed: () => Navigator.pop(c), child: const Text("إغلاق")),
+                    ],
                   ));
                 }),
               ],
@@ -364,9 +367,7 @@ class HomeScreen extends StatelessWidget {
 
   Widget _buildSubIcon(BuildContext context, {required String title, required IconData icon, required Color color, VoidCallback? onTap}) {
     return GestureDetector(
-      onTap: onTap ?? () {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("تم الضغط على $title")));
-      },
+      onTap: onTap,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 10),
         child: Column(
@@ -383,6 +384,19 @@ class HomeScreen extends StatelessWidget {
       ),
     );
   }
+}
+
+Widget buildPyramidBadge(bool isFav) {
+  if (!isFav) return const SizedBox.shrink();
+  return Positioned(
+    top: 5, right: 5,
+    child: Image.network('https://img.icons8.com/color/48/pyramids.png', width: 28, height: 28),
+  );
+}
+
+bool checkIsFavorite(dynamic item) {
+  final id = item['stream_id']?.toString() ?? item['series_id']?.toString();
+  return globalFavorites.any((fav) => (fav['stream_id']?.toString() ?? fav['series_id']?.toString()) == id);
 }
 
 // --- 3. شاشة البث المباشر ---
@@ -454,6 +468,18 @@ class _LiveChannelsScreenState extends State<LiveChannelsScreen> {
     _videoController!.play();
   }
 
+  void _toggleFav(dynamic ch) {
+    setState(() {
+      if (checkIsFavorite(ch)) {
+        globalFavorites.removeWhere((fav) => fav['stream_id'].toString() == ch['stream_id'].toString());
+      } else {
+        var copy = Map<String, dynamic>.from(ch);
+        copy['fav_type'] = 'live';
+        globalFavorites.add(copy);
+      }
+    });
+  }
+
   @override
   void dispose() {
     _videoController?.dispose();
@@ -502,11 +528,26 @@ class _LiveChannelsScreenState extends State<LiveChannelsScreen> {
                         itemCount: _filteredChannels.length,
                         itemBuilder: (context, index) {
                           final ch = _filteredChannels[index];
-                          return ListTile(
-                            tileColor: ch['name'] == _selectedChannelTitle ? Colors.redAccent.withOpacity(0.3) : null,
-                            leading: const Icon(Icons.tv, color: Colors.white70, size: 20),
-                            title: Text(ch['name'] ?? '', style: const TextStyle(fontSize: 12)),
-                            onTap: () => _playChannel(ch),
+                          return Stack(
+                            children: [
+                              ListTile(
+                                tileColor: ch['name'] == _selectedChannelTitle ? Colors.redAccent.withOpacity(0.3) : null,
+                                leading: const Icon(Icons.tv, color: Colors.white70, size: 20),
+                                title: Text(ch['name'] ?? '', style: const TextStyle(fontSize: 12)),
+                                onTap: () {
+                                  // الضغطة الأولى تشغل، الضغطة الثانية تكبر الشاشة
+                                  if (ch['name'] == _selectedChannelTitle) {
+                                    if (_videoController != null && _videoController!.value.isInitialized) {
+                                      Navigator.push(context, MaterialPageRoute(builder: (_) => LiveFullScreenPlayer(controller: _videoController!, title: _selectedChannelTitle)));
+                                    }
+                                  } else {
+                                    _playChannel(ch);
+                                  }
+                                },
+                                onLongPress: () => _toggleFav(ch),
+                              ),
+                              buildPyramidBadge(checkIsFavorite(ch)),
+                            ],
                           );
                         },
                       ),
@@ -522,6 +563,34 @@ class _LiveChannelsScreenState extends State<LiveChannelsScreen> {
                   ),
                 ],
               ),
+      ),
+    );
+  }
+}
+
+// --- شاشة مشغل البث المباشر الكاملة ---
+class LiveFullScreenPlayer extends StatelessWidget {
+  final VideoPlayerController controller;
+  final String title;
+  const LiveFullScreenPlayer({super.key, required this.controller, required this.title});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Stack(
+        children: [
+          Center(
+            child: AspectRatio(aspectRatio: controller.value.aspectRatio, child: VideoPlayer(controller)),
+          ),
+          Positioned(
+            top: 40, left: 20,
+            child: IconButton(
+              icon: const Icon(Icons.arrow_back, color: Colors.white, size: 35),
+              onPressed: () => Navigator.pop(context),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -581,6 +650,19 @@ class _VODCategoryScreenState extends State<VODCategoryScreen> {
     });
   }
 
+  void _toggleFav(dynamic item) {
+    setState(() {
+      if (checkIsFavorite(item)) {
+        final id = item['stream_id']?.toString() ?? item['series_id']?.toString();
+        globalFavorites.removeWhere((fav) => (fav['stream_id']?.toString() ?? fav['series_id']?.toString()) == id);
+      } else {
+        var copy = Map<String, dynamic>.from(item);
+        copy['fav_type'] = widget.type;
+        globalFavorites.add(copy);
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -633,33 +715,39 @@ class _VODCategoryScreenState extends State<VODCategoryScreen> {
                               final name = item['name'] ?? '';
 
                               return GestureDetector(
+                                onLongPress: () => _toggleFav(item),
                                 onTap: () {
-                                  // حل مشكلة عدم فتح الأفلام!
                                   if (widget.type == "movie") {
                                     final streamId = item['stream_id'];
                                     final ext = item['container_extension'] ?? 'mp4';
                                     final url = "$SERVER_URL/movie/${widget.username}/${widget.password}/$streamId.$ext";
                                     Navigator.push(context, MaterialPageRoute(builder: (_) => FullScreenPlayer(url: url, title: name)));
                                   } else {
-                                     // للمسلسلات
-                                     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("اخترت المسلسل: $name")));
+                                    Navigator.push(context, MaterialPageRoute(builder: (_) => SeriesEpisodesScreen(
+                                      username: widget.username, password: widget.password, seriesId: item['series_id'].toString(), seriesName: name, cover: cover
+                                    )));
                                   }
                                 },
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    color: Colors.black87,
-                                    borderRadius: BorderRadius.circular(8),
-                                    image: cover.isNotEmpty ? DecorationImage(image: NetworkImage(cover), fit: BoxFit.cover) : null,
-                                  ),
-                                  child: Container(
-                                    alignment: Alignment.bottomCenter,
-                                    padding: const EdgeInsets.all(5),
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(8),
-                                      gradient: const LinearGradient(colors: [Colors.black, Colors.transparent], begin: Alignment.bottomCenter, end: Alignment.topCenter),
+                                child: Stack(
+                                  children: [
+                                    Container(
+                                      decoration: BoxDecoration(
+                                        color: Colors.black87,
+                                        borderRadius: BorderRadius.circular(8),
+                                        image: cover.isNotEmpty ? DecorationImage(image: NetworkImage(cover), fit: BoxFit.cover) : null,
+                                      ),
+                                      child: Container(
+                                        alignment: Alignment.bottomCenter,
+                                        padding: const EdgeInsets.all(5),
+                                        decoration: BoxDecoration(
+                                          borderRadius: BorderRadius.circular(8),
+                                          gradient: const LinearGradient(colors: [Colors.black, Colors.transparent], begin: Alignment.bottomCenter, end: Alignment.topCenter),
+                                        ),
+                                        child: Text(name, maxLines: 2, textAlign: TextAlign.center, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                                      ),
                                     ),
-                                    child: Text(name, maxLines: 2, textAlign: TextAlign.center, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                                  ),
+                                    buildPyramidBadge(checkIsFavorite(item)),
+                                  ],
                                 ),
                               );
                             },
@@ -672,7 +760,81 @@ class _VODCategoryScreenState extends State<VODCategoryScreen> {
   }
 }
 
-// --- 5. شاشة مشغل الفيديو الجديد للأفلام ---
+// --- شاشة تفاصيل المسلسل لاختيار الحلقات ---
+class SeriesEpisodesScreen extends StatefulWidget {
+  final String username, password, seriesId, seriesName, cover;
+  const SeriesEpisodesScreen({super.key, required this.username, required this.password, required this.seriesId, required this.seriesName, required this.cover});
+
+  @override
+  State<SeriesEpisodesScreen> createState() => _SeriesEpisodesScreenState();
+}
+
+class _SeriesEpisodesScreenState extends State<SeriesEpisodesScreen> {
+  List<dynamic> _allEpisodes = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchEpisodes();
+  }
+
+  Future<void> _fetchEpisodes() async {
+    final url = Uri.parse("$SERVER_URL/player_api.php?username=${widget.username}&password=${widget.password}&action=get_series_info&series_id=${widget.seriesId}");
+    try {
+      final res = await http.get(url, headers: const {"User-Agent": "IPTVSmarters/1.0"});
+      if (res.statusCode == 200) {
+        final data = json.decode(res.body);
+        final episodesMap = data['episodes'];
+        if (episodesMap is Map) {
+          episodesMap.forEach((season, episodesList) {
+            if (episodesList is List) {
+              _allEpisodes.addAll(episodesList);
+            }
+          });
+        }
+        setState(() => _isLoading = false);
+      }
+    } catch (e) {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text(widget.seriesName), backgroundColor: Colors.black),
+      body: buildCustomBackground(
+        _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _allEpisodes.isEmpty
+            ? const Center(child: Text("لا توجد حلقات متاحة"))
+            : ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: _allEpisodes.length,
+                itemBuilder: (context, index) {
+                  final ep = _allEpisodes[index];
+                  final title = ep['title'] ?? "Episode ${index + 1}";
+                  return Card(
+                    color: Colors.black54,
+                    child: ListTile(
+                      leading: const Icon(Icons.play_circle_fill, color: Colors.redAccent, size: 40),
+                      title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+                      onTap: () {
+                        final ext = ep['container_extension'] ?? 'mp4';
+                        final url = "$SERVER_URL/series/${widget.username}/${widget.password}/${ep['id']}.$ext";
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => FullScreenPlayer(url: url, title: title)));
+                      },
+                    ),
+                  );
+                },
+              )
+      ),
+    );
+  }
+}
+
+// --- 5. شاشة مشغل الفيديو الجديد ---
 class FullScreenPlayer extends StatefulWidget {
   final String url;
   final String title;
@@ -686,6 +848,7 @@ class FullScreenPlayer extends StatefulWidget {
 class _FullScreenPlayerState extends State<FullScreenPlayer> {
   late VideoPlayerController _controller;
   bool _isInitialized = false;
+  bool _showControls = true;
 
   @override
   void initState() {
@@ -696,7 +859,15 @@ class _FullScreenPlayerState extends State<FullScreenPlayer> {
     )..initialize().then((_) {
         setState(() => _isInitialized = true);
         _controller.play();
+        Future.delayed(const Duration(seconds: 3), () {
+          if (mounted) setState(() => _showControls = false);
+        });
       });
+  }
+
+  void _seek(int seconds) {
+    final newPos = _controller.value.position + Duration(seconds: seconds);
+    _controller.seekTo(newPos);
   }
 
   @override
@@ -709,29 +880,129 @@ class _FullScreenPlayerState extends State<FullScreenPlayer> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      appBar: AppBar(title: Text(widget.title), backgroundColor: Colors.transparent, elevation: 0),
-      body: Center(
-        child: _isInitialized
-            ? AspectRatio(
-                aspectRatio: _controller.value.aspectRatio,
-                child: Stack(
-                  alignment: Alignment.bottomCenter,
+      body: GestureDetector(
+        onTap: () => setState(() => _showControls = !_showControls),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            if (_isInitialized)
+              AspectRatio(aspectRatio: _controller.value.aspectRatio, child: VideoPlayer(_controller))
+            else
+              const CircularProgressIndicator(color: Colors.redAccent),
+            
+            if (_showControls && _isInitialized) ...[
+              Container(color: Colors.black54),
+              Positioned(
+                top: 40, left: 20,
+                child: Row(
                   children: [
-                    VideoPlayer(_controller),
-                    VideoProgressIndicator(_controller, allowScrubbing: true, colors: const VideoProgressColors(playedColor: Colors.redAccent)),
+                    IconButton(icon: const Icon(Icons.arrow_back, color: Colors.white, size: 30), onPressed: () => Navigator.pop(context)),
+                    Text(widget.title, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
                   ],
                 ),
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.replay_10, color: Colors.white), iconSize: 60,
+                    onPressed: () => _seek(-10),
+                  ),
+                  IconButton(
+                    icon: Icon(_controller.value.isPlaying ? Icons.pause_circle_filled : Icons.play_circle_fill, color: Colors.redAccent), iconSize: 80,
+                    onPressed: () {
+                      setState(() {
+                        _controller.value.isPlaying ? _controller.pause() : _controller.play();
+                      });
+                    },
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.forward_10, color: Colors.white), iconSize: 60,
+                    onPressed: () => _seek(10),
+                  ),
+                ],
+              ),
+              Positioned(
+                bottom: 30, left: 40, right: 40,
+                child: VideoProgressIndicator(_controller, allowScrubbing: true, colors: const VideoProgressColors(playedColor: Colors.redAccent)),
               )
-            : const CircularProgressIndicator(color: Colors.redAccent),
+            ]
+          ],
+        ),
       ),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: Colors.redAccent,
-        onPressed: () {
-          setState(() {
-            _controller.value.isPlaying ? _controller.pause() : _controller.play();
-          });
-        },
-        child: Icon(_controller.value.isPlaying ? Icons.pause : Icons.play_arrow),
+    );
+  }
+}
+
+// --- شاشة المفضلة (FAVORITES) ---
+class FavoritesScreen extends StatefulWidget {
+  final String username;
+  final String password;
+  const FavoritesScreen({super.key, required this.username, required this.password});
+
+  @override
+  State<FavoritesScreen> createState() => _FavoritesScreenState();
+}
+
+class _FavoritesScreenState extends State<FavoritesScreen> {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text("المفضلة (Favorites)"), backgroundColor: Colors.black),
+      body: buildCustomBackground(
+        globalFavorites.isEmpty
+          ? const Center(child: Text("لا توجد عناصر في المفضلة", style: TextStyle(fontSize: 18, color: Colors.white)))
+          : GridView.builder(
+              padding: const EdgeInsets.all(16),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 5, childAspectRatio: 0.7, crossAxisSpacing: 10, mainAxisSpacing: 10),
+              itemCount: globalFavorites.length,
+              itemBuilder: (context, index) {
+                final item = globalFavorites[index];
+                final type = item['fav_type'];
+                final cover = item['stream_icon'] ?? item['cover'] ?? '';
+                final name = item['name'] ?? '';
+
+                return GestureDetector(
+                  onLongPress: () {
+                    setState(() { globalFavorites.removeAt(index); });
+                  },
+                  onTap: () {
+                    if (type == 'movie') {
+                      final url = "$SERVER_URL/movie/${widget.username}/${widget.password}/${item['stream_id']}.${item['container_extension'] ?? 'mp4'}";
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => FullScreenPlayer(url: url, title: name)));
+                    } else if (type == 'series') {
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => SeriesEpisodesScreen(
+                        username: widget.username, password: widget.password, seriesId: item['series_id'].toString(), seriesName: name, cover: cover
+                      )));
+                    } else if (type == 'live') {
+                      final url = "$SERVER_URL/live/${widget.username}/${widget.password}/${item['stream_id']}.ts";
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => FullScreenPlayer(url: url, title: name)));
+                    }
+                  },
+                  child: Stack(
+                    children: [
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.black87,
+                          borderRadius: BorderRadius.circular(8),
+                          image: cover.isNotEmpty ? DecorationImage(image: NetworkImage(cover), fit: BoxFit.cover) : null,
+                        ),
+                        child: Container(
+                          alignment: Alignment.bottomCenter,
+                          padding: const EdgeInsets.all(5),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(8),
+                            gradient: const LinearGradient(colors: [Colors.black, Colors.transparent], begin: Alignment.bottomCenter, end: Alignment.topCenter),
+                          ),
+                          child: Text(name, maxLines: 2, textAlign: TextAlign.center, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                        ),
+                      ),
+                      buildPyramidBadge(true),
+                    ],
+                  ),
+                );
+              },
+            )
       ),
     );
   }
