@@ -24,10 +24,8 @@ jobs:
         run: |
           rm -rf android
           flutter create . --platforms=android --org=com.bella.iptv
-          sed -i '/<manifest/a \    <uses-permission android:name="android.permission.INTERNET"/>' android/app/src/main/AndroidManifest.xml || true
-          sed -i '/<manifest/a \    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>' android/app/src/main/AndroidManifest.xml || true
-          sed -i 's/android:usesCleartextTraffic="false"/android:usesCleartextTraffic="true"/g' android/app/src/main/AndroidManifest.xml || true
-          sed -i '/<application/a \        android:usesCleartextTraffic="true"' android/app/src/main/AndroidManifest.xml || true
+          sed -i 's/<application/<application android:usesCleartextTraffic="true"/g' android/app/src/main/AndroidManifest.xml
+          sed -i 's/<manifest xmlns:android="http:\/\/schemas.android.com\/apk\/res\/android">/<manifest xmlns:android="http:\/\/schemas.android.com\/apk\/res\/android">\n    <uses-permission android:name="android.permission.INTERNET"\/>\n    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"\/>/g' android/app/src/main/AndroidManifest.xml
 
       - name: Install Dependencies
         run: flutter pub get
