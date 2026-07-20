@@ -2,9 +2,8 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:better_player/better_player.dart';
+import 'package:video_player/video_player.dart';
 
-// تجاوز قيود الأمان لروابط HTTP وجميع الشهادات
 class MyHttpOverrides extends HttpOverrides {
   @override
   HttpClient createHttpClient(SecurityContext? context) {
@@ -73,22 +72,16 @@ class _LoginPageState extends State<LoginPage> {
       _errorMessage = '';
     });
 
-    // طريقة طلب API المعتمدة لـ Xtream Codes
     final authUrl = Uri.parse("$SERVER_URL/player_api.php?username=$username&password=$password");
 
     try {
       final response = await http.get(
         authUrl,
-        headers: {
-          "User-Agent": "IPTVSmarters/1.0",
-          "Accept": "*/*",
-        },
+        headers: {"User-Agent": "IPTVSmarters/1.0", "Accept": "*/*"},
       ).timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        
-        // التحقق من صحة الاشتراك
         if (data is Map && data.containsKey('user_info')) {
           final authStatus = data['user_info']['status'];
           if (authStatus == 'Active' || authStatus == 'active' || authStatus == '1') {
@@ -96,7 +89,7 @@ class _LoginPageState extends State<LoginPage> {
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
-                builder: (context) => ChannelListPage(
+                builder: (context) => DashboardPage(
                   username: username,
                   password: password,
                 ),
@@ -109,20 +102,17 @@ class _LoginPageState extends State<LoginPage> {
             });
             return;
           }
-        } else if (data is Map && data.containsKey('user_info') == false) {
+        } else {
           setState(() {
             _errorMessage = "اسم المستخدم أو كلمة السر غير صحيحة";
           });
           return;
         }
       }
-      
       setState(() {
         _errorMessage = "فشل الاتصال: السيرفر رد بكود (${response.statusCode})";
       });
-
     } catch (e) {
-      // تجربة طريقة ثانية مبسطة في حالة وجود مشكلة في فك الـ JSON
       setState(() {
         _errorMessage = "تعذر الاتصال بالسيرفر. تحقق من البيانات أو حالة الاشتراك";
       });
@@ -201,44 +191,12 @@ class _LoginPageState extends State<LoginPage> {
   }
 }
 
-// --- شاشة عرض القنوات ---
-class ChannelListPage extends StatefulWidget {
+// --- الشاشة الرئيسية (3 أقسام: Live / Movies / Series) ---
+class DashboardPage extends StatelessWidget {
   final String username;
   final String password;
 
-  const ChannelListPage({super.key, required this.username, required this.password});
-
-  @override
-  State<ChannelListPage> createState() => _ChannelListPageState();
-}
-
-class _ChannelListPageState extends State<ChannelListPage> {
-  List<dynamic> _channels = [];
-  bool _isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _fetchChannels();
-  }
-
-  Future<void> _fetchChannels() async {
-    final url = Uri.parse(
-        "$SERVER_URL/player_api.php?username=${widget.username}&password=${widget.password}&action=get_live_streams");
-    try {
-      final response = await http.get(url, headers: {"User-Agent": "IPTVSmarters/1.0"});
-      if (response.statusCode == 200) {
-        setState(() {
-          _channels = json.decode(response.body);
-          _isLoading = false;
-        });
-      }
-    } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
-    }
-  }
+  const DashboardPage({super.key, required this.username, required this.password});
 
   @override
   Widget build(BuildContext context) {
@@ -257,39 +215,184 @@ class _ChannelListPageState extends State<ChannelListPage> {
           )
         ],
       ),
+      body: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: GridView.count(
+          crossAxisCount: MediaQuery.of(context).orientation == Orientation.landscape ? 3 : 1,
+          crossAxisSpacing: 20,
+          mainAxisSpacing: 20,
+          children: [
+            _buildCategoryCard(
+              context,
+              title: "LIVE TV\nبث مباشر",
+              icon: Icons.live_tv_rounded,
+              color: Colors.redAccent,
+              action: "get_live_streams",
+              type: "live",
+            ),
+            _buildCategoryCard(
+              context,
+              title: "MOVIES\nأفلام",
+              icon: Icons.movie_rounded,
+              color: Colors.blueAccent,
+              action: "get_vod_streams",
+              type: "movie",
+            ),
+            _buildCategoryCard(
+              context,
+              title: "SERIES\nمسلسلات",
+              icon: Icons.tv_sharp,
+              color: Colors.greenAccent,
+              action: "get_series",
+              type: "series",
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCategoryCard(
+    BuildContext context, {
+    required String title,
+    required IconData icon,
+    required Color color,
+    required String action,
+    required String type,
+  }) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ContentListPage(
+              username: username,
+              password: password,
+              action: action,
+              title: title.replaceAll('\n', ' - '),
+              type: type,
+            ),
+          ),
+        );
+      },
+      child: Card(
+        color: const Color(0xFF1E1E2C),
+        elevation: 8,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 70, color: color),
+            const SizedBox(height: 15),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// --- شاشة عرض القنوات / الأفلام / المسلسلات ---
+class ContentListPage extends StatefulWidget {
+  final String username;
+  final String password;
+  final String action;
+  final String title;
+  final String type;
+
+  const ContentListPage({
+    super.key,
+    required this.username,
+    required this.password,
+    required this.action,
+    required String title,
+    required this.type,
+  }) : title = title;
+
+  @override
+  State<ContentListPage> createState() => _ContentListPageState();
+}
+
+class _ContentListPageState extends State<ContentListPage> {
+  List<dynamic> _items = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchData();
+  }
+
+  Future<void> _fetchData() async {
+    final url = Uri.parse(
+        "$SERVER_URL/player_api.php?username=${widget.username}&password=${widget.password}&action=${widget.action}");
+    try {
+      final response = await http.get(url, headers: {"User-Agent": "IPTVSmarters/1.0"});
+      if (response.statusCode == 200) {
+        setState(() {
+          _items = json.decode(response.body);
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text(widget.title)),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : _channels.isEmpty
-              ? const Center(child: Text("لا توجد قنوات متاحة"))
+          : _items.isEmpty
+              ? const Center(child: Text("لا توجد عناصر متاحة في هذا القسم"))
               : ListView.builder(
-                  itemCount: _channels.length,
+                  itemCount: _items.length,
                   itemBuilder: (context, index) {
-                    final channel = _channels[index];
-                    final streamId = channel['stream_id'];
-                    final streamUrl =
-                        "$SERVER_URL/live/${widget.username}/${widget.password}/$streamId.m3u8";
+                    final item = _items[index];
+                    final streamId = item['stream_id'] ?? item['series_id'];
+                    final name = item['name'] ?? 'بدون عنوان';
+                    final iconUrl = item['stream_icon'] ?? item['cover'] ?? '';
+
+                    String streamUrl = "";
+                    if (widget.type == "live") {
+                      streamUrl = "$SERVER_URL/live/${widget.username}/${widget.password}/$streamId.ts";
+                    } else if (widget.type == "movie") {
+                      final ext = item['container_extension'] ?? 'mp4';
+                      streamUrl = "$SERVER_URL/movie/${widget.username}/${widget.password}/$streamId.$ext";
+                    }
 
                     return ListTile(
-                      leading: channel['stream_icon'] != null &&
-                              channel['stream_icon'].toString().isNotEmpty
+                      leading: iconUrl.isNotEmpty
                           ? Image.network(
-                              channel['stream_icon'],
-                              width: 40,
-                              height: 40,
-                              errorBuilder: (c, e, s) => const Icon(Icons.live_tv),
+                              iconUrl,
+                              width: 50,
+                              height: 50,
+                              fit: BoxFit.cover,
+                              errorBuilder: (c, e, s) => const Icon(Icons.play_circle_outline, size: 40),
                             )
-                          : const Icon(Icons.live_tv),
-                      title: Text(channel['name'] ?? 'قناة بدون اسم'),
+                          : const Icon(Icons.play_circle_outline, size: 40),
+                      title: Text(name),
+                      subtitle: widget.type == "movie" ? Text("فلم / VOD") : null,
                       onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => VideoPlayerPage(
-                              streamUrl: streamUrl,
-                              channelName: channel['name'] ?? 'بث مباشر',
+                        if (widget.type != "series" && streamUrl.isNotEmpty) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => PlayerScreen(
+                                streamUrl: streamUrl,
+                                title: name,
+                              ),
                             ),
-                          ),
-                        );
+                          );
+                        }
                       },
                     );
                   },
@@ -298,36 +401,48 @@ class _ChannelListPageState extends State<ChannelListPage> {
   }
 }
 
-// --- مشغل الفيديو ---
-class VideoPlayerPage extends StatefulWidget {
+// --- مشغل الفيديو المطور بدعم الـ Headers لفك الحظر ---
+class PlayerScreen extends StatefulWidget {
   final String streamUrl;
-  final String channelName;
+  final String title;
 
-  const VideoPlayerPage({super.key, required this.streamUrl, required this.channelName});
+  const PlayerScreen({super.key, required this.streamUrl, required this.title});
 
   @override
-  State<VideoPlayerPage> createState() => _VideoPlayerPageState();
+  State<PlayerScreen> createState() => _PlayerScreenState();
 }
 
-class _VideoPlayerPageState extends State<VideoPlayerPage> {
-  late BetterPlayerController _controller;
+class _PlayerScreenState extends State<PlayerScreen> {
+  late VideoPlayerController _controller;
+  bool _isInitialized = false;
+  bool _hasError = false;
 
   @override
   void initState() {
     super.initState();
-    BetterPlayerDataSource dataSource = BetterPlayerDataSource(
-      BetterPlayerDataSourceType.network,
-      widget.streamUrl,
-      liveStream: true,
+    _initPlayer();
+  }
+
+  Future<void> _initPlayer() async {
+    _controller = VideoPlayerController.networkUrl(
+      Uri.parse(widget.streamUrl),
+      httpHeaders: {
+        "User-Agent": "IPTVSmarters/1.0",
+        "Accept": "*/*",
+      },
     );
-    _controller = BetterPlayerController(
-      const BetterPlayerConfiguration(
-        autoPlay: true,
-        aspectRatio: 16 / 9,
-        fit: BoxFit.contain,
-      ),
-      betterPlayerDataSource: dataSource,
-    );
+
+    try {
+      await _controller.initialize();
+      setState(() {
+        _isInitialized = true;
+      });
+      _controller.play();
+    } catch (e) {
+      setState(() {
+        _hasError = true;
+      });
+    }
   }
 
   @override
@@ -339,9 +454,39 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(widget.channelName)),
+      appBar: AppBar(title: Text(widget.title)),
+      backgroundColor: Colors.black,
       body: Center(
-        child: BetterPlayer(controller: _controller),
+        child: _hasError
+            ? Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.error_outline, size: 60, color: Colors.red),
+                  const SizedBox(height: 10),
+                  const Text("تعذر تشغيل هذا البث، قد يكون السيرفر أو القناة متوقفة حالياً"),
+                  ElevatedButton(
+                    onPressed: () {
+                      setState(() {
+                        _hasError = false;
+                      });
+                      _initPlayer();
+                    },
+                    child: const Text("إعادة المحاولة"),
+                  )
+                ],
+              )
+            : _isInitialized
+                ? AspectRatio(
+                    aspectRatio: _controller.value.aspectRatio,
+                    child: Stack(
+                      alignment: Alignment.bottomCenter,
+                      children: [
+                        VideoPlayer(_controller),
+                        VideoProgressIndicator(_controller, allowScrubbing: true),
+                      ],
+                    ),
+                  )
+                : const CircularProgressIndicator(),
       ),
     );
   }
