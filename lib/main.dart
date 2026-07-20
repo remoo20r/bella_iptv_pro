@@ -930,22 +930,32 @@ class _LiveChannelsScreenState extends State<LiveChannelsScreen> with AutoHideCo
 
   Widget _buildVideoArea() {
     final controller = _videoController;
-    if (controller == null || !controller.value.isInitialized) {
-      return Container(color: Colors.black);
-    }
-    final size = controller.value.size;
     return Container(
       color: Colors.black,
-      width: double.infinity,
-      height: double.infinity,
-      child: FittedBox(
-        fit: BoxFit.contain,
-        child: SizedBox(
-          width: size.width == 0 ? 16 : size.width,
-          height: size.height == 0 ? 9 : size.height,
-          child: VideoPlayer(controller),
-        ),
-      ),
+      child: (controller == null || !controller.value.isInitialized)
+          ? null
+          : LayoutBuilder(
+              builder: (context, constraints) {
+                final maxW = constraints.maxWidth;
+                final maxH = constraints.maxHeight;
+                final aspect = controller.value.aspectRatio <= 0 ? (16 / 9) : controller.value.aspectRatio;
+
+                double w = maxW;
+                double h = w / aspect;
+                if (h > maxH) {
+                  h = maxH;
+                  w = h * aspect;
+                }
+
+                return Center(
+                  child: SizedBox(
+                    width: w,
+                    height: h,
+                    child: VideoPlayer(controller),
+                  ),
+                );
+              },
+            ),
     );
   }
 
