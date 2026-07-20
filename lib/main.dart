@@ -377,7 +377,7 @@ class HomeScreen extends StatelessWidget {
   }
 }
 
-// --- 3. البث المباشر (المجموعات + القنوات + المشغل) ---
+// --- 3. شاشة البث المباشر (المجموعات + القنوات + المشغل) ---
 class LiveChannelsScreen extends StatefulWidget {
   final String username;
   final String password;
@@ -461,7 +461,7 @@ class _LiveChannelsScreenState extends State<LiveChannelsScreen> {
 
     _videoController = VideoPlayerController.networkUrl(
       Uri.parse(url),
-      httpHeaders: {"User-Agent": "IPTVSmarters/1.0"},
+      httpHeaders: const {"User-Agent": "IPTVSmarters/1.0"},
     );
 
     await _videoController!.initialize();
