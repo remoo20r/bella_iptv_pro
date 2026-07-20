@@ -19,6 +19,9 @@ jobs:
         run: |
           rm -rf android
           flutter create . --platforms=android --org=com.bella.iptv
+          sed -i 's/minSdkVersion flutter.minSdkVersion/minSdkVersion 21/g' android/app/build.gradle
+          sed -i 's/minSdkVersion 16/minSdkVersion 21/g' android/app/build.gradle
+          sed -i 's/minSdkVersion 19/minSdkVersion 21/g' android/app/build.gradle
           sed -i 's/<application/<application android:usesCleartextTraffic="true"/g' android/app/src/main/AndroidManifest.xml
           sed -i 's/<manifest xmlns:android="http:\/\/schemas.android.com\/apk\/res\/android">/<manifest xmlns:android="http:\/\/schemas.android.com\/apk\/res\/android">\n    <uses-permission android:name="android.permission.INTERNET"\/>\n    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"\/>\n    <uses-feature android:name="android.software.leanback" android:required="false"\/>\n    <uses-feature android:name="android.hardware.touchscreen" android:required="false"\/>/g' android/app/src/main/AndroidManifest.xml
           sed -i '/<\/manifest>/i\    <queries>\n        <intent>\n            <action android:name="android.intent.action.DIAL" \/>\n            <data android:scheme="tel" \/>\n        <\/intent>\n        <intent>\n            <action android:name="android.intent.action.VIEW" \/>\n            <data android:scheme="https" \/>\n        <\/intent>\n    <\/queries>' android/app/src/main/AndroidManifest.xml
