@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:video_player/video_player.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter/services.dart';
 
 class MyHttpOverrides extends HttpOverrides {
   @override
@@ -888,7 +889,7 @@ class _LiveChannelsScreenState extends State<LiveChannelsScreen> with AutoHideCo
 
     // نفس القناة الشغالة بالفعل: كبّر الشاشة بدل ما تعيد التشغيل
     if (streamId == _selectedStreamId && _videoController != null) {
-      setState(() => _isFullscreen = true);
+      _enterFullscreen();
       showControlsTemporarily();
       return;
     }
@@ -921,41 +922,75 @@ class _LiveChannelsScreenState extends State<LiveChannelsScreen> with AutoHideCo
     if (mounted) setState(() {});
   }
 
+  void _enterFullscreen() {
+    setState(() => _isFullscreen = true);
+    // اقلب الشاشة للوضع الأفقي وأخفِ أشرطة النظام حتى يملأ الفيديو الشاشة بالكامل
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.landscapeLeft,
+      DeviceOrientation.landscapeRight,
+    ]);
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+  }
+
+  void _exitFullscreen() {
+    setState(() => _isFullscreen = false);
+    // ارجع لكل الاتجاهات وأظهر أشرطة النظام من جديد
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown,
+      DeviceOrientation.landscapeLeft,
+      DeviceOrientation.landscapeRight,
+    ]);
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+  }
+
   @override
   void dispose() {
     disposeAutoHide();
     _videoController?.dispose();
+    // تأكد من إرجاع الاتجاه ووضع الواجهة لو خرج المستخدم وهو في وضع ملء الشاشة
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown,
+      DeviceOrientation.landscapeLeft,
+      DeviceOrientation.landscapeRight,
+    ]);
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     super.dispose();
   }
 
-  Widget _buildVideoArea() {
+  Widget _buildVideoArea({bool cover = false}) {
     final controller = _videoController;
+    if (controller == null || !controller.value.isInitialized) {
+      return Container(color: Colors.black);
+    }
+
+    final aspect = controller.value.aspectRatio <= 0 ? (16 / 9) : controller.value.aspectRatio;
+    final Size size = controller.value.size;
+    final double vidW = size.width <= 0 ? 16 : size.width;
+    final double vidH = size.height <= 0 ? 9 : size.height;
+
+    // وضع ملء الشاشة: املأ الشاشة بالكامل (قد يُقص جزء بسيط جداً من الأطراف)
+    if (cover) {
+      return Container(
+        color: Colors.black,
+        child: FittedBox(
+          fit: BoxFit.cover,
+          clipBehavior: Clip.hardEdge,
+          child: SizedBox(width: vidW, height: vidH, child: VideoPlayer(controller)),
+        ),
+      );
+    }
+
+    // المعاينة الجانبية: أظهر الفيديو كاملاً بأبعاده الصحيحة داخل المساحة المتاحة
     return Container(
       color: Colors.black,
-      child: (controller == null || !controller.value.isInitialized)
-          ? null
-          : LayoutBuilder(
-              builder: (context, constraints) {
-                final maxW = constraints.maxWidth;
-                final maxH = constraints.maxHeight;
-                final aspect = controller.value.aspectRatio <= 0 ? (16 / 9) : controller.value.aspectRatio;
-
-                double w = maxW;
-                double h = w / aspect;
-                if (h > maxH) {
-                  h = maxH;
-                  w = h * aspect;
-                }
-
-                return Center(
-                  child: SizedBox(
-                    width: w,
-                    height: h,
-                    child: VideoPlayer(controller),
-                  ),
-                );
-              },
-            ),
+      child: Center(
+        child: AspectRatio(
+          aspectRatio: aspect,
+          child: VideoPlayer(controller),
+        ),
+      ),
     );
   }
 
@@ -979,7 +1014,7 @@ class _LiveChannelsScreenState extends State<LiveChannelsScreen> with AutoHideCo
               children: [
                 IconButton(
                   icon: const Icon(Icons.fullscreen_exit, color: AppColors.gold, size: 26),
-                  onPressed: () => setState(() => _isFullscreen = false),
+                  onPressed: _exitFullscreen,
                 ),
                 Expanded(
                   child: Text(
@@ -1004,7 +1039,7 @@ class _LiveChannelsScreenState extends State<LiveChannelsScreen> with AutoHideCo
         canPop: false,
         onPopInvoked: (didPop) {
           if (didPop) return;
-          setState(() => _isFullscreen = false);
+          _exitFullscreen();
         },
         child: Scaffold(
           backgroundColor: Colors.black,
@@ -1012,7 +1047,7 @@ class _LiveChannelsScreenState extends State<LiveChannelsScreen> with AutoHideCo
             onTap: toggleControls,
             child: Stack(
               children: [
-                Positioned.fill(child: _buildVideoArea()),
+                Positioned.fill(child: _buildVideoArea(cover: true)),
                 _fullscreenOverlay(),
               ],
             ),
@@ -1093,7 +1128,7 @@ class _LiveChannelsScreenState extends State<LiveChannelsScreen> with AutoHideCo
                   child: GestureDetector(
                     onTap: () {
                       if (_selectedStreamId.isNotEmpty) {
-                        setState(() => _isFullscreen = true);
+                        _enterFullscreen();
                         showControlsTemporarily();
                       }
                     },
