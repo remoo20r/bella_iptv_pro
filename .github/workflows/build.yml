@@ -22,7 +22,10 @@ jobs:
           channel: 'stable'
 
       - name: Create Android Project Structure
-        run: flutter create . --platforms=android --org=com.bella.iptv
+        run: |
+          flutter create . --platforms=android --org=com.bella.iptv
+          sed -i 's/android:usesCleartextTraffic="false"/android:usesCleartextTraffic="true"/g' android/app/src/main/AndroidManifest.xml || true
+          sed -i '/<application/a \        android:usesCleartextTraffic="true"' android/app/src/main/AndroidManifest.xml || true
 
       - name: Install dependencies
         run: flutter pub get
