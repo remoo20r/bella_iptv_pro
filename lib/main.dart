@@ -459,8 +459,8 @@ class _LiveChannelsScreenState extends State<LiveChannelsScreen> {
       _selectedChannelTitle = channel['name'] ?? '';
     });
 
-    _videoController = VideoPlayerController.networkUrl(
-      Uri.parse(url),
+    _videoController = VideoPlayerController.network(
+      url,
       httpHeaders: {"User-Agent": "IPTVSmarters/1.0"},
     );
 
