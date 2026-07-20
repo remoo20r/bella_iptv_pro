@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:better_player/better_player.dart';
 
-// تجاوز قيود شهادات الأمان وحظر اتصالات HTTP غير المشفرة
+// تجاوز قيود الأمان لروابط HTTP وجميع الشهادات
 class MyHttpOverrides extends HttpOverrides {
   @override
   HttpClient createHttpClient(SecurityContext? context) {
@@ -17,6 +17,7 @@ const String SERVER_URL = "http://arabesktv.com:2095";
 const String APP_NAME = "Bella IPTV Pro";
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
   HttpOverrides.global = MyHttpOverrides();
   runApp(const BellaIPTVApp());
 }
@@ -72,39 +73,58 @@ class _LoginPageState extends State<LoginPage> {
       _errorMessage = '';
     });
 
-    final authUrl = Uri.parse(
-        "$SERVER_URL/player_api.php?username=$username&password=$password");
+    // طريقة طلب API المعتمدة لـ Xtream Codes
+    final authUrl = Uri.parse("$SERVER_URL/player_api.php?username=$username&password=$password");
 
     try {
-      final response = await http.get(authUrl).timeout(const Duration(seconds: 12));
-      
+      final response = await http.get(
+        authUrl,
+        headers: {
+          "User-Agent": "IPTVSmarters/1.0",
+          "Accept": "*/*",
+        },
+      ).timeout(const Duration(seconds: 15));
+
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        if (data['user_info'] != null &&
-            data['user_info']['status'] == 'Active') {
-          if (!mounted) return;
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (context) => ChannelListPage(
-                username: username,
-                password: password,
+        
+        // التحقق من صحة الاشتراك
+        if (data is Map && data.containsKey('user_info')) {
+          final authStatus = data['user_info']['status'];
+          if (authStatus == 'Active' || authStatus == 'active' || authStatus == '1') {
+            if (!mounted) return;
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => ChannelListPage(
+                  username: username,
+                  password: password,
+                ),
               ),
-            ),
-          );
-        } else {
+            );
+            return;
+          } else {
+            setState(() {
+              _errorMessage = "الحساب غير نشط أو الاشتراك منتهي";
+            });
+            return;
+          }
+        } else if (data is Map && data.containsKey('user_info') == false) {
           setState(() {
-            _errorMessage = "بيانات الدخول غير صحيحة أو الاشتراك منتهي";
+            _errorMessage = "اسم المستخدم أو كلمة السر غير صحيحة";
           });
+          return;
         }
-      } else {
-        setState(() {
-          _errorMessage = "خطأ في السيرفر (${response.statusCode})";
-        });
       }
-    } catch (e) {
+      
       setState(() {
-        _errorMessage = "تعذر الاتصال بالسيرفر، تأكد من البيانات والشبكة";
+        _errorMessage = "فشل الاتصال: السيرفر رد بكود (${response.statusCode})";
+      });
+
+    } catch (e) {
+      // تجربة طريقة ثانية مبسطة في حالة وجود مشكلة في فك الـ JSON
+      setState(() {
+        _errorMessage = "تعذر الاتصال بالسيرفر. تحقق من البيانات أو حالة الاشتراك";
       });
     } finally {
       if (mounted) {
@@ -151,7 +171,14 @@ class _LoginPageState extends State<LoginPage> {
               ),
               const SizedBox(height: 20),
               if (_errorMessage.isNotEmpty)
-                Text(_errorMessage, style: const TextStyle(color: Colors.redAccent)),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8.0),
+                  child: Text(
+                    _errorMessage,
+                    style: const TextStyle(color: Colors.redAccent, fontSize: 16),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
               const SizedBox(height: 10),
               SizedBox(
                 width: double.infinity,
@@ -199,7 +226,7 @@ class _ChannelListPageState extends State<ChannelListPage> {
     final url = Uri.parse(
         "$SERVER_URL/player_api.php?username=${widget.username}&password=${widget.password}&action=get_live_streams");
     try {
-      final response = await http.get(url);
+      final response = await http.get(url, headers: {"User-Agent": "IPTVSmarters/1.0"});
       if (response.statusCode == 200) {
         setState(() {
           _channels = json.decode(response.body);
@@ -249,8 +276,7 @@ class _ChannelListPageState extends State<ChannelListPage> {
                               channel['stream_icon'],
                               width: 40,
                               height: 40,
-                              errorBuilder: (c, e, s) =>
-                                  const Icon(Icons.live_tv),
+                              errorBuilder: (c, e, s) => const Icon(Icons.live_tv),
                             )
                           : const Icon(Icons.live_tv),
                       title: Text(channel['name'] ?? 'قناة بدون اسم'),
