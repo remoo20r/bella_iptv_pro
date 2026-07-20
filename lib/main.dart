@@ -86,7 +86,7 @@ class _LoginPageState extends State<LoginPage> {
           final authStatus = userInfo['status'];
           if (authStatus == 'Active' || authStatus == 'active' || authStatus == '1') {
             if (!mounted) return;
-            
+
             String expFormatted = 'Unlimited';
             if (userInfo['exp_date'] != null && userInfo['exp_date'].toString().isNotEmpty) {
               try {
@@ -241,7 +241,7 @@ class HomeScreen extends StatelessWidget {
                   ],
                 ),
                 Column(
-                  crossAxisAlignment: CrossAlignment.end,
+                  crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(nowStr, style: const TextStyle(color: Colors.white70, fontSize: 13)),
                     Text("Expiration: $expDateStr", style: const TextStyle(color: Colors.white38, fontSize: 11)),
