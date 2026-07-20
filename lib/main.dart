@@ -43,7 +43,7 @@ class BellaIPTVApp extends StatelessWidget {
   }
 }
 
-// --- 1. شاشة تسجيل الدخول ---
+// --- 1. تسجيل الدخول ---
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
 
@@ -197,7 +197,7 @@ class _LoginPageState extends State<LoginPage> {
   }
 }
 
-// --- 2. الشاشة الرئيسية (HOME SCREEN) ---
+// --- 2. الشاشة الرئيسية ---
 class HomeScreen extends StatelessWidget {
   final String username;
   final String password;
@@ -377,7 +377,7 @@ class HomeScreen extends StatelessWidget {
   }
 }
 
-// --- 3. شاشة البث المباشر الموزعة بالـ Categories ---
+// --- 3. البث المباشر (المجموعات + القنوات + المشغل) ---
 class LiveChannelsScreen extends StatefulWidget {
   final String username;
   final String password;
@@ -552,7 +552,7 @@ class _LiveChannelsScreenState extends State<LiveChannelsScreen> {
   }
 }
 
-// --- 4. شاشة الأفلام والمسلسلات مع المجموعات ---
+// --- 4. الأفلام والمسلسلات والمجموعات ---
 class VODCategoryScreen extends StatefulWidget {
   final String username;
   final String password;
