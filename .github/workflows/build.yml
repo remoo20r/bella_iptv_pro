@@ -21,9 +21,12 @@ jobs:
           flutter-version: '3.19.x'
           channel: 'stable'
 
-      - name: Create Android Project Structure
+      - name: Create Android Project Structure & Fix Permissions
         run: |
           flutter create . --platforms=android --org=com.bella.iptv
+          # إضافة إذن الإنترنت الصريح لحل أي حظر من الأندرويد
+          sed -i '/<manifest/a \    <uses-permission android:name="android.permission.INTERNET"/>' android/app/src/main/AndroidManifest.xml || true
+          sed -i '/<manifest/a \    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>' android/app/src/main/AndroidManifest.xml || true
           sed -i 's/android:usesCleartextTraffic="false"/android:usesCleartextTraffic="true"/g' android/app/src/main/AndroidManifest.xml || true
           sed -i '/<application/a \        android:usesCleartextTraffic="true"' android/app/src/main/AndroidManifest.xml || true
 
