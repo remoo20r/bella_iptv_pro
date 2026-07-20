@@ -1,11 +1,8 @@
-٩٢٢٣٣٧٢٠٣٦٨٥٤٧٧٥٨٠٧import 'dart:convert';
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:video_player/video_player.dart';
-
-// --- القائمة العامة لحفظ المفضلة في الذاكرة ---
-final List<Map<String, dynamic>> globalFavorites = [];
 
 class MyHttpOverrides extends HttpOverrides {
   @override
@@ -16,7 +13,7 @@ class MyHttpOverrides extends HttpOverrides {
 }
 
 const String SERVER_URL = "http://arabesktv.com:2095";
-const String APP_NAME = "IPTV PRO";
+const String APP_NAME = "Bella IPTV Pro";
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -33,67 +30,17 @@ class BellaIPTVApp extends StatelessWidget {
       title: APP_NAME,
       debugShowCheckedModeBanner: false,
       theme: ThemeData.dark().copyWith(
-        scaffoldBackgroundColor: Colors.black,
-        primaryColor: Colors.redAccent,
+        scaffoldBackgroundColor: const Color(0xFF14141E),
+        primaryColor: const Color(0xFF8B5CF6),
         colorScheme: const ColorScheme.dark(
-          primary: Colors.redAccent,
-          secondary: Colors.blueAccent,
+          primary: Color(0xFF8B5CF6),
+          secondary: Color(0xFFA78BFA),
+          surface: Color(0xFF1E1E2D),
         ),
       ),
       home: const LoginPage(),
     );
   }
-}
-
-// --- 🎨 خلفية التطبيق المخصصة ---
-Widget buildCustomBackground(Widget child) {
-  return Container(
-    decoration: const BoxDecoration(
-      gradient: LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        stops: [0.1, 0.4, 0.7, 1.0],
-        colors: [
-          Color(0xFF2B0054),
-          Color(0xFF000000),
-          Color(0xFF5E0000),
-          Color(0xFF000000),
-        ],
-      ),
-    ),
-    child: Stack(
-      children: [
-        Positioned.fill(
-          child: CustomPaint(
-            painter: DiagonalLinesPainter(),
-          ),
-        ),
-        SafeArea(child: child),
-      ],
-    ),
-  );
-}
-
-class DiagonalLinesPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paintRed = Paint()
-      ..color = Colors.red.withOpacity(0.15)
-      ..strokeWidth = 40
-      ..style = PaintingStyle.stroke;
-
-    final paintBlue = Paint()
-      ..color = Colors.blueAccent.withOpacity(0.1)
-      ..strokeWidth = 60
-      ..style = PaintingStyle.stroke;
-
-    canvas.drawLine(const Offset(-100, 100), Offset(size.width + 100, size.height + 100), paintRed);
-    canvas.drawLine(const Offset(-50, -50), Offset(size.width + 100, size.height - 100), paintBlue);
-    canvas.drawLine(Offset(size.width * 0.5, -100), Offset(size.width + 100, size.height * 0.5), paintRed);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 // --- 1. شاشة تسجيل الدخول ---
@@ -115,7 +62,7 @@ class _LoginPageState extends State<LoginPage> {
     final password = _passwordController.text.trim();
 
     if (username.isEmpty || password.isEmpty) {
-      setState(() => _errorMessage = "يرجى إدخال البيانات");
+      setState(() => _errorMessage = "يرجى إدخال اسم المستخدم وكلمة السر");
       return;
     }
 
@@ -129,38 +76,45 @@ class _LoginPageState extends State<LoginPage> {
     try {
       final response = await http.get(
         authUrl,
-        headers: const {"User-Agent": "IPTVSmarters/1.0"},
+        headers: const {"User-Agent": "IPTVSmarters/1.0", "Accept": "*/*"},
       ).timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         if (data is Map && data.containsKey('user_info')) {
           final userInfo = data['user_info'];
-          if (userInfo['status'] == 'Active' || userInfo['status'] == 'active' || userInfo['status'] == '1') {
+          final authStatus = userInfo['status'];
+          if (authStatus == 'Active' || authStatus == 'active' || authStatus == '1') {
             if (!mounted) return;
+
             String expFormatted = 'Unlimited';
-            if (userInfo['exp_date'] != null) {
+            if (userInfo['exp_date'] != null && userInfo['exp_date'].toString().isNotEmpty) {
               try {
                 final dt = DateTime.fromMillisecondsSinceEpoch(int.parse(userInfo['exp_date'].toString()) * 1000);
                 expFormatted = "${dt.day}/${dt.month}/${dt.year}";
               } catch (_) {}
             }
+
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
-                builder: (_) => HomeScreen(username: username, password: password, expDateStr: expFormatted),
+                builder: (context) => HomeScreen(
+                  username: username,
+                  password: password,
+                  expDateStr: expFormatted,
+                ),
               ),
             );
             return;
           } else {
-            setState(() => _errorMessage = "الحساب غير نشط");
+            setState(() => _errorMessage = "الحساب غير نشط أو الاشتراك منتهي");
             return;
           }
         }
       }
-      setState(() => _errorMessage = "البيانات غير صحيحة");
+      setState(() => _errorMessage = "بيانات الدخول غير صحيحة");
     } catch (e) {
-      setState(() => _errorMessage = "تعذر الاتصال بالسيرفر");
+      setState(() => _errorMessage = "تعذر الاتصال بالسيرفر، تأكد من الشبكة");
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -169,79 +123,73 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: buildCustomBackground(
-        Center(
-          child: SizedBox(
-            width: 350,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.redAccent, width: 2),
-                    color: Colors.black54,
-                  ),
-                  child: const Text(
-                    "IPTV\nPRO",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white),
-                  ),
+      body: Center(
+        child: Container(
+          width: 420,
+          padding: const EdgeInsets.all(32),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1E1E2D),
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: const [BoxShadow(color: Colors.black54, blurRadius: 20)],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF8B5CF6).withOpacity(0.2),
+                  shape: BoxShape.circle,
                 ),
-                const SizedBox(height: 40),
-                Container(
-                  color: Colors.white.withOpacity(0.8),
-                  child: TextField(
-                    controller: _usernameController,
-                    style: const TextStyle(color: Colors.black),
-                    decoration: const InputDecoration(
-                      hintText: 'Username',
-                      hintStyle: TextStyle(color: Colors.black54),
-                      prefixIcon: Icon(Icons.person_outline, color: Colors.black54),
-                      border: InputBorder.none,
-                      contentPadding: EdgeInsets.symmetric(vertical: 15),
-                    ),
-                  ),
+                child: const Icon(Icons.tv, size: 60, color: Color(0xFF8B5CF6)),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                APP_NAME,
+                style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Colors.white),
+              ),
+              const SizedBox(height: 24),
+              TextField(
+                controller: _usernameController,
+                decoration: InputDecoration(
+                  labelText: 'Username',
+                  filled: true,
+                  fillColor: const Color(0xFF14141E),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  prefixIcon: const Icon(Icons.person, color: Color(0xFF8B5CF6)),
                 ),
-                const SizedBox(height: 2),
-                Container(
-                  color: Colors.lightBlue.withOpacity(0.9),
-                  child: TextField(
-                    controller: _passwordController,
-                    obscureText: true,
-                    style: const TextStyle(color: Colors.black),
-                    decoration: const InputDecoration(
-                      hintText: 'Password',
-                      hintStyle: TextStyle(color: Colors.black54),
-                      prefixIcon: Icon(Icons.lock_outline, color: Colors.black54),
-                      suffixIcon: Icon(Icons.remove_red_eye, color: Colors.black54),
-                      border: InputBorder.none,
-                      contentPadding: EdgeInsets.symmetric(vertical: 15),
-                    ),
-                  ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _passwordController,
+                obscureText: true,
+                decoration: InputDecoration(
+                  labelText: 'Password',
+                  filled: true,
+                  fillColor: const Color(0xFF14141E),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  prefixIcon: const Icon(Icons.lock, color: Color(0xFF8B5CF6)),
                 ),
-                const SizedBox(height: 2),
-                SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: ElevatedButton(
-                    onPressed: _isLoading ? null : _login,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.black87,
-                      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
-                    ),
-                    child: _isLoading
-                        ? const CircularProgressIndicator(color: Colors.white)
-                        : const Text('SIGN IN', style: TextStyle(fontSize: 16, color: Colors.white, letterSpacing: 1.5)),
+              ),
+              const SizedBox(height: 20),
+              if (_errorMessage.isNotEmpty)
+                Text(_errorMessage, style: const TextStyle(color: Colors.redAccent)),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton(
+                  onPressed: _isLoading ? null : _login,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF8B5CF6),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
+                  child: _isLoading
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : const Text('LOG IN', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                 ),
-                if (_errorMessage.isNotEmpty) ...[
-                  const SizedBox(height: 15),
-                  Text(_errorMessage, style: const TextStyle(color: Colors.yellowAccent, fontWeight: FontWeight.bold)),
-                ]
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
@@ -249,157 +197,197 @@ class _LoginPageState extends State<LoginPage> {
   }
 }
 
-// --- 2. الشاشة الرئيسية ---
+// --- 2. الشاشة الرئيسية (تصميم جديد) ---
 class HomeScreen extends StatelessWidget {
   final String username;
   final String password;
   final String expDateStr;
 
-  const HomeScreen({super.key, required this.username, required this.password, required this.expDateStr});
+  const HomeScreen({
+    super.key,
+    required this.username,
+    required this.password,
+    required this.expDateStr,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final now = DateTime.now();
+    final nowStr = "${now.day}/${now.month}/${now.year}";
+
     return Scaffold(
-      body: buildCustomBackground(
-        Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          child: Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF8B5CF6).withOpacity(0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.tv, size: 40, color: Color(0xFF8B5CF6)),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                APP_NAME,
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
+              ),
+              const SizedBox(height: 2),
+              Text(nowStr, style: const TextStyle(color: Colors.white38, fontSize: 12)),
+              const Spacer(),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: Colors.redAccent, width: 2), color: Colors.black),
-                    child: const Text("IPTV\nPRO", textAlign: TextAlign.center, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white)),
+                  _buildRibbonButton(
+                    title: "LIVE TV",
+                    icon: Icons.sensors,
+                    iconBg: const Color(0xFF8B5CF6),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => LiveChannelsScreen(username: username, password: password),
+                      ),
+                    ),
                   ),
-                  Row(
-                    children: const [
-                      Icon(Icons.search, size: 28),
-                      SizedBox(width: 15),
-                      Icon(Icons.sports_soccer, size: 28),
-                      SizedBox(width: 15),
-                      Icon(Icons.notifications_active, size: 28, color: Colors.amber),
-                    ],
-                  )
+                  _buildRibbonButton(
+                    title: "MOVIES",
+                    icon: Icons.movie_filter,
+                    iconBg: const Color(0xFFEC4899),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => VODCategoryScreen(
+                          username: username,
+                          password: password,
+                          type: "movie",
+                          title: "MOVIES",
+                        ),
+                      ),
+                    ),
+                  ),
+                  _buildRibbonButton(
+                    title: "SERIES",
+                    icon: Icons.video_library,
+                    iconBg: const Color(0xFF06B6D4),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => VODCategoryScreen(
+                          username: username,
+                          password: password,
+                          type: "series",
+                          title: "SERIES",
+                        ),
+                      ),
+                    ),
+                  ),
                 ],
               ),
-            ),
-            const Spacer(),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _buildMainCircleIcon(context, title: "LIVE TV", icon: Icons.tv, onTap: () {
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => LiveChannelsScreen(username: username, password: password)));
-                }),
-                _buildMainCircleIcon(context, title: "MOVIES", icon: Icons.movie_creation, onTap: () {
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => VODCategoryScreen(username: username, password: password, type: "movie", title: "MOVIES")));
-                }),
-                _buildMainCircleIcon(context, title: "TV SERIES", icon: Icons.video_library, onTap: () {
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => VODCategoryScreen(username: username, password: password, type: "series", title: "TV SERIES")));
-                }),
-              ],
-            ),
-            const SizedBox(height: 30),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _buildSubIcon(context, title: "FAVORITES", icon: Icons.favorite, color: Colors.red, onTap: () {
-                   Navigator.push(context, MaterialPageRoute(builder: (_) => FavoritesScreen(username: username, password: password)));
-                }),
-                _buildSubIcon(context, title: "ACCOUNT", icon: Icons.person, color: Colors.redAccent, onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Expiration: $expDateStr")));
-                }),
-                _buildSubIcon(context, title: "SETTINGS", icon: Icons.settings, color: Colors.amber, onTap: () {
-                  showDialog(context: context, builder: (c) => AlertDialog(
-                    backgroundColor: Colors.black87,
-                    title: const Text("الإعدادات (Settings)", style: TextStyle(color: Colors.white)),
-                    content: const Text("اختر الإجراء المطلوب", style: TextStyle(color: Colors.white70)),
-                    actions: [
-                      TextButton(
-                        onPressed: () {
-                          Navigator.pop(c);
-                          Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LoginPage()));
-                        },
-                        child: const Text("تسجيل الخروج (Logout)", style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 40),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _buildSmallMenuItem(Icons.replay, "Catch up", () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text("ميزة Catch up قيد التطوير، هتتوفر قريباً")),
+                    );
+                  }),
+                  _buildSmallMenuItem(Icons.grid_view, "Multi-Screen", () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text("ميزة Multi-Screen قيد التطوير، هتتوفر قريباً")),
+                    );
+                  }),
+                  _buildSmallMenuItem(Icons.settings, "Settings", () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => SettingsScreen(
+                          username: username,
+                          password: password,
+                          expDateStr: expDateStr,
+                        ),
                       ),
-                      TextButton(onPressed: () => Navigator.pop(c), child: const Text("إغلاق")),
-                    ],
-                  ));
-                }),
-              ],
-            ),
-            const Spacer(),
-            Padding(
-              padding: const EdgeInsets.only(bottom: 20),
-              child: Text("Expire: $expDateStr", style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-            )
-          ],
+                    );
+                  }),
+                ],
+              ),
+              const Spacer(),
+              Text("Expire: $expDateStr", style: const TextStyle(color: Colors.white38, fontSize: 12)),
+              const SizedBox(height: 8),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildMainCircleIcon(BuildContext context, {required String title, required IconData icon, required VoidCallback onTap}) {
+  Widget _buildRibbonButton({
+    required String title,
+    required IconData icon,
+    required Color iconBg,
+    required VoidCallback onTap,
+  }) {
     return GestureDetector(
       onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10),
-        child: Column(
-          children: [
-            Container(
-              width: 100,
-              height: 100,
-              decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.white.withOpacity(0.1), border: Border.all(color: Colors.white38, width: 2)),
-              child: Icon(icon, size: 50, color: Colors.white),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 88,
+            height: 88,
+            decoration: BoxDecoration(
+              color: iconBg,
+              shape: BoxShape.circle,
+              boxShadow: [BoxShadow(color: iconBg.withOpacity(0.45), blurRadius: 16, spreadRadius: 1)],
             ),
-            const SizedBox(height: 5),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
-              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(5)),
-              child: Text(title, style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 14)),
-            )
-          ],
-        ),
+            child: Icon(icon, color: Colors.white, size: 38),
+          ),
+          Transform.translate(
+            offset: const Offset(0, -10),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1E1E2D),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: iconBg, width: 1.4),
+              ),
+              child: Text(
+                title,
+                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildSubIcon(BuildContext context, {required String title, required IconData icon, required Color color, VoidCallback? onTap}) {
+  Widget _buildSmallMenuItem(IconData icon, String title, VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10),
-        child: Column(
-          children: [
-            Icon(icon, size: 35, color: color),
-            const SizedBox(height: 5),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(3)),
-              child: Text(title, style: const TextStyle(color: Colors.black, fontSize: 10, fontWeight: FontWeight.bold)),
-            )
-          ],
-        ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 54,
+            height: 54,
+            decoration: const BoxDecoration(
+              color: Color(0xFF1E1E2D),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: const Color(0xFF8B5CF6), size: 24),
+          ),
+          const SizedBox(height: 6),
+          Text(title, style: const TextStyle(color: Colors.white70, fontSize: 11)),
+        ],
       ),
     );
   }
 }
 
-Widget buildPyramidBadge(bool isFav) {
-  if (!isFav) return const SizedBox.shrink();
-  return Positioned(
-    top: 5, right: 5,
-    child: Image.network('https://img.icons8.com/color/48/pyramids.png', width: 28, height: 28),
-  );
-}
-
-bool checkIsFavorite(dynamic item) {
-  final id = item['stream_id']?.toString() ?? item['series_id']?.toString();
-  return globalFavorites.any((fav) => (fav['stream_id']?.toString() ?? fav['series_id']?.toString()) == id);
-}
-
-// --- 3. شاشة البث المباشر ---
+// --- 3. شاشة البث المباشر الموزعة بالـ Categories ---
 class LiveChannelsScreen extends StatefulWidget {
   final String username;
   final String password;
@@ -426,21 +414,29 @@ class _LiveChannelsScreenState extends State<LiveChannelsScreen> {
   }
 
   Future<void> _loadData() async {
-    final catUrl = Uri.parse("$SERVER_URL/player_api.php?username=${widget.username}&password=${widget.password}&action=get_live_categories");
-    final chUrl = Uri.parse("$SERVER_URL/player_api.php?username=${widget.username}&password=${widget.password}&action=get_live_streams");
+    final catUrl = Uri.parse(
+        "$SERVER_URL/player_api.php?username=${widget.username}&password=${widget.password}&action=get_live_categories");
+    final chUrl = Uri.parse(
+        "$SERVER_URL/player_api.php?username=${widget.username}&password=${widget.password}&action=get_live_streams");
 
     try {
       final catRes = await http.get(catUrl, headers: const {"User-Agent": "IPTVSmarters/1.0"});
       final chRes = await http.get(chUrl, headers: const {"User-Agent": "IPTVSmarters/1.0"});
 
       if (catRes.statusCode == 200 && chRes.statusCode == 200) {
+        final cats = json.decode(catRes.body);
+        final chs = json.decode(chRes.body);
+
         setState(() {
-          _categories = json.decode(catRes.body) as List;
-          _allChannels = json.decode(chRes.body) as List;
+          _categories = cats is List ? cats : [];
+          _allChannels = chs is List ? chs : [];
           _filteredChannels = _allChannels;
           _isLoading = false;
         });
-        if (_filteredChannels.isNotEmpty) _playChannel(_filteredChannels[0]);
+
+        if (_filteredChannels.isNotEmpty) {
+          _playChannel(_filteredChannels[0]);
+        }
       }
     } catch (e) {
       setState(() => _isLoading = false);
@@ -450,34 +446,37 @@ class _LiveChannelsScreenState extends State<LiveChannelsScreen> {
   void _filterCategory(String catId) {
     setState(() {
       _selectedCategoryId = catId;
-      _filteredChannels = catId == 'all' ? _allChannels : _allChannels.where((c) => c['category_id'].toString() == catId).toList();
+      if (catId == 'all') {
+        _filteredChannels = _allChannels;
+      } else {
+        _filteredChannels = _allChannels.where((c) => c['category_id'].toString() == catId).toList();
+      }
     });
-    if (_filteredChannels.isNotEmpty) _playChannel(_filteredChannels[0]);
+    if (_filteredChannels.isNotEmpty) {
+      _playChannel(_filteredChannels[0]);
+    }
   }
 
   void _playChannel(dynamic channel) async {
     final streamId = channel['stream_id'];
     final url = "$SERVER_URL/live/${widget.username}/${widget.password}/$streamId.ts";
 
-    if (_videoController != null) await _videoController!.dispose();
-    setState(() => _selectedChannelTitle = channel['name'] ?? '');
+    if (_videoController != null) {
+      await _videoController!.dispose();
+    }
 
-    _videoController = VideoPlayerController.networkUrl(Uri.parse(url), httpHeaders: const {"User-Agent": "IPTVSmarters/1.0"});
+    setState(() {
+      _selectedChannelTitle = channel['name'] ?? '';
+    });
+
+    _videoController = VideoPlayerController.networkUrl(
+      Uri.parse(url),
+      httpHeaders: const {"User-Agent": "IPTVSmarters/1.0"},
+    );
+
     await _videoController!.initialize();
     setState(() {});
     _videoController!.play();
-  }
-
-  void _toggleFav(dynamic ch) {
-    setState(() {
-      if (checkIsFavorite(ch)) {
-        globalFavorites.removeWhere((fav) => fav['stream_id'].toString() == ch['stream_id'].toString());
-      } else {
-        var copy = Map<String, dynamic>.from(ch);
-        copy['fav_type'] = 'live';
-        globalFavorites.add(copy);
-      }
-    });
   }
 
   @override
@@ -489,121 +488,94 @@ class _LiveChannelsScreenState extends State<LiveChannelsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(_selectedChannelTitle.isEmpty ? "Live TV" : _selectedChannelTitle), backgroundColor: Colors.black),
-      body: buildCustomBackground(
-        _isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : Row(
-                children: [
-                  SizedBox(
-                    width: 200,
-                    child: Container(
-                      color: Colors.black54,
-                      child: ListView.builder(
-                        itemCount: _categories.length + 1,
-                        itemBuilder: (context, index) {
-                          if (index == 0) {
-                            return ListTile(
-                              tileColor: _selectedCategoryId == 'all' ? Colors.redAccent.withOpacity(0.5) : null,
-                              title: const Text("الكل", style: TextStyle(fontWeight: FontWeight.bold)),
-                              onTap: () => _filterCategory('all'),
-                            );
-                          }
-                          final cat = _categories[index - 1];
-                          final catId = cat['category_id'].toString();
+      appBar: AppBar(title: Text(_selectedChannelTitle.isEmpty ? "Live TV" : _selectedChannelTitle)),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Row(
+              children: [
+                SizedBox(
+                  width: 220,
+                  child: Container(
+                    color: const Color(0xFF1E1E2D),
+                    child: ListView.builder(
+                      itemCount: _categories.length + 1,
+                      itemBuilder: (context, index) {
+                        if (index == 0) {
+                          final isSel = _selectedCategoryId == 'all';
                           return ListTile(
-                            tileColor: _selectedCategoryId == catId ? Colors.redAccent.withOpacity(0.5) : null,
-                            title: Text(cat['category_name'] ?? '', style: const TextStyle(fontSize: 13)),
-                            onTap: () => _filterCategory(catId),
+                            tileColor: isSel ? const Color(0xFF8B5CF6) : null,
+                            title: const Text("كل المجموعات (ALL)", style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                            onTap: () => _filterCategory('all'),
                           );
-                        },
-                      ),
+                        }
+                        final cat = _categories[index - 1];
+                        final catId = cat['category_id'].toString();
+                        final isSel = _selectedCategoryId == catId;
+                        return ListTile(
+                          tileColor: isSel ? const Color(0xFF8B5CF6) : null,
+                          title: Text(cat['category_name'] ?? '', style: const TextStyle(fontSize: 13)),
+                          onTap: () => _filterCategory(catId),
+                        );
+                      },
                     ),
                   ),
-                  SizedBox(
-                    width: 250,
-                    child: Container(
-                      color: Colors.black87,
-                      child: ListView.builder(
-                        itemCount: _filteredChannels.length,
-                        itemBuilder: (context, index) {
-                          final ch = _filteredChannels[index];
-                          return Stack(
-                            children: [
-                              ListTile(
-                                tileColor: ch['name'] == _selectedChannelTitle ? Colors.redAccent.withOpacity(0.3) : null,
-                                leading: const Icon(Icons.tv, color: Colors.white70, size: 20),
-                                title: Text(ch['name'] ?? '', style: const TextStyle(fontSize: 12)),
-                                onTap: () {
-                                  // الضغطة الأولى تشغل، الضغطة الثانية تكبر الشاشة
-                                  if (ch['name'] == _selectedChannelTitle) {
-                                    if (_videoController != null && _videoController!.value.isInitialized) {
-                                      Navigator.push(context, MaterialPageRoute(builder: (_) => LiveFullScreenPlayer(controller: _videoController!, title: _selectedChannelTitle)));
-                                    }
-                                  } else {
-                                    _playChannel(ch);
-                                  }
-                                },
-                                onLongPress: () => _toggleFav(ch),
-                              ),
-                              buildPyramidBadge(checkIsFavorite(ch)),
-                            ],
-                          );
-                        },
-                      ),
-                    ),
+                ),
+                SizedBox(
+                  width: 250,
+                  child: ListView.builder(
+                    itemCount: _filteredChannels.length,
+                    itemBuilder: (context, index) {
+                      final ch = _filteredChannels[index];
+                      final isSelected = ch['name'] == _selectedChannelTitle;
+                      return ListTile(
+                        tileColor: isSelected ? const Color(0xFF8B5CF6).withOpacity(0.3) : null,
+                        leading: const Icon(Icons.live_tv, color: Colors.white70, size: 20),
+                        title: Text(ch['name'] ?? '', style: const TextStyle(fontSize: 12)),
+                        onTap: () => _playChannel(ch),
+                      );
+                    },
                   ),
-                  Expanded(
-                    child: Container(
-                      color: Colors.black,
-                      child: _videoController != null && _videoController!.value.isInitialized
-                          ? AspectRatio(aspectRatio: _videoController!.value.aspectRatio, child: VideoPlayer(_videoController!))
-                          : const Center(child: CircularProgressIndicator(color: Colors.redAccent)),
-                    ),
+                ),
+                Expanded(
+                  child: Container(
+                    color: Colors.black,
+                    child: _videoController != null && _videoController!.value.isInitialized
+                        ? AspectRatio(
+                            aspectRatio: _videoController!.value.aspectRatio,
+                            child: VideoPlayer(_videoController!),
+                          )
+                        : const Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                CircularProgressIndicator(color: Color(0xFF8B5CF6)),
+                                SizedBox(height: 12),
+                                Text("جاري تحميل البث...", style: TextStyle(color: Colors.white54)),
+                              ],
+                            ),
+                          ),
                   ),
-                ],
-              ),
-      ),
-    );
-  }
-}
-
-// --- شاشة مشغل البث المباشر الكاملة ---
-class LiveFullScreenPlayer extends StatelessWidget {
-  final VideoPlayerController controller;
-  final String title;
-  const LiveFullScreenPlayer({super.key, required this.controller, required this.title});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: Stack(
-        children: [
-          Center(
-            child: AspectRatio(aspectRatio: controller.value.aspectRatio, child: VideoPlayer(controller)),
-          ),
-          Positioned(
-            top: 40, left: 20,
-            child: IconButton(
-              icon: const Icon(Icons.arrow_back, color: Colors.white, size: 35),
-              onPressed: () => Navigator.pop(context),
+                ),
+              ],
             ),
-          ),
-        ],
-      ),
     );
   }
 }
 
-// --- 4. شاشة عرض قوائم الأفلام والمسلسلات ---
+// --- 4. شاشة الأفلام والمسلسلات مع المجموعات ---
 class VODCategoryScreen extends StatefulWidget {
   final String username;
   final String password;
   final String type;
   final String title;
 
-  const VODCategoryScreen({super.key, required this.username, required this.password, required this.type, required this.title});
+  const VODCategoryScreen({
+    super.key,
+    required this.username,
+    required this.password,
+    required this.type,
+    required this.title,
+  });
 
   @override
   State<VODCategoryScreen> createState() => _VODCategoryScreenState();
@@ -626,14 +598,20 @@ class _VODCategoryScreenState extends State<VODCategoryScreen> {
     final catAction = widget.type == "movie" ? "get_vod_categories" : "get_series_categories";
     final itemAction = widget.type == "movie" ? "get_vod_streams" : "get_series";
 
+    final catUrl = Uri.parse("$SERVER_URL/player_api.php?username=${widget.username}&password=${widget.password}&action=$catAction");
+    final itemUrl = Uri.parse("$SERVER_URL/player_api.php?username=${widget.username}&password=${widget.password}&action=$itemAction");
+
     try {
-      final catRes = await http.get(Uri.parse("$SERVER_URL/player_api.php?username=${widget.username}&password=${widget.password}&action=$catAction"));
-      final itemRes = await http.get(Uri.parse("$SERVER_URL/player_api.php?username=${widget.username}&password=${widget.password}&action=$itemAction"));
+      final catRes = await http.get(catUrl, headers: const {"User-Agent": "IPTVSmarters/1.0"});
+      final itemRes = await http.get(itemUrl, headers: const {"User-Agent": "IPTVSmarters/1.0"});
 
       if (catRes.statusCode == 200 && itemRes.statusCode == 200) {
+        final cats = json.decode(catRes.body);
+        final items = json.decode(itemRes.body);
+
         setState(() {
-          _categories = json.decode(catRes.body) as List;
-          _allItems = json.decode(itemRes.body) as List;
+          _categories = cats is List ? cats : [];
+          _allItems = items is List ? items : [];
           _filteredItems = _allItems;
           _isLoading = false;
         });
@@ -646,363 +624,455 @@ class _VODCategoryScreenState extends State<VODCategoryScreen> {
   void _filterCategory(String catId) {
     setState(() {
       _selectedCategoryId = catId;
-      _filteredItems = catId == 'all' ? _allItems : _allItems.where((i) => i['category_id'].toString() == catId).toList();
-    });
-  }
-
-  void _toggleFav(dynamic item) {
-    setState(() {
-      if (checkIsFavorite(item)) {
-        final id = item['stream_id']?.toString() ?? item['series_id']?.toString();
-        globalFavorites.removeWhere((fav) => (fav['stream_id']?.toString() ?? fav['series_id']?.toString()) == id);
+      if (catId == 'all') {
+        _filteredItems = _allItems;
       } else {
-        var copy = Map<String, dynamic>.from(item);
-        copy['fav_type'] = widget.type;
-        globalFavorites.add(copy);
+        _filteredItems = _allItems.where((i) => i['category_id'].toString() == catId).toList();
       }
     });
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(widget.title), backgroundColor: Colors.black),
-      body: buildCustomBackground(
-        _isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : Row(
-                children: [
-                  SizedBox(
-                    width: 220,
-                    child: Container(
-                      color: Colors.black54,
-                      child: ListView.builder(
-                        itemCount: _categories.length + 1,
-                        itemBuilder: (context, index) {
-                          if (index == 0) {
-                            return ListTile(
-                              tileColor: _selectedCategoryId == 'all' ? Colors.redAccent.withOpacity(0.5) : null,
-                              title: const Text("الكل", style: TextStyle(fontWeight: FontWeight.bold)),
-                              onTap: () => _filterCategory('all'),
-                            );
-                          }
-                          final cat = _categories[index - 1];
-                          final catId = cat['category_id'].toString();
-                          return ListTile(
-                            tileColor: _selectedCategoryId == catId ? Colors.redAccent.withOpacity(0.5) : null,
-                            title: Text(cat['category_name'] ?? '', style: const TextStyle(fontSize: 13)),
-                            onTap: () => _filterCategory(catId),
-                          );
-                        },
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: _filteredItems.isEmpty
-                        ? const Center(child: Text("لا يوجـد محتوى"))
-                        : GridView.builder(
-                            padding: const EdgeInsets.all(16),
-                            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 5,
-                              childAspectRatio: 0.7,
-                              crossAxisSpacing: 10,
-                              mainAxisSpacing: 10,
-                            ),
-                            itemCount: _filteredItems.length,
-                            itemBuilder: (context, index) {
-                              final item = _filteredItems[index];
-                              final cover = item['stream_icon'] ?? item['cover'] ?? '';
-                              final name = item['name'] ?? '';
+  void _openItem(dynamic item) {
+    final name = (item['name'] ?? '').toString();
 
-                              return GestureDetector(
-                                onLongPress: () => _toggleFav(item),
-                                onTap: () {
-                                  if (widget.type == "movie") {
-                                    final streamId = item['stream_id'];
-                                    final ext = item['container_extension'] ?? 'mp4';
-                                    final url = "$SERVER_URL/movie/${widget.username}/${widget.password}/$streamId.$ext";
-                                    Navigator.push(context, MaterialPageRoute(builder: (_) => FullScreenPlayer(url: url, title: name)));
-                                  } else {
-                                    Navigator.push(context, MaterialPageRoute(builder: (_) => SeriesEpisodesScreen(
-                                      username: widget.username, password: widget.password, seriesId: item['series_id'].toString(), seriesName: name, cover: cover
-                                    )));
-                                  }
-                                },
-                                child: Stack(
-                                  children: [
-                                    Container(
-                                      decoration: BoxDecoration(
-                                        color: Colors.black87,
-                                        borderRadius: BorderRadius.circular(8),
-                                        image: cover.isNotEmpty ? DecorationImage(image: NetworkImage(cover), fit: BoxFit.cover) : null,
-                                      ),
-                                      child: Container(
-                                        alignment: Alignment.bottomCenter,
-                                        padding: const EdgeInsets.all(5),
-                                        decoration: BoxDecoration(
-                                          borderRadius: BorderRadius.circular(8),
-                                          gradient: const LinearGradient(colors: [Colors.black, Colors.transparent], begin: Alignment.bottomCenter, end: Alignment.topCenter),
-                                        ),
-                                        child: Text(name, maxLines: 2, textAlign: TextAlign.center, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                                      ),
-                                    ),
-                                    buildPyramidBadge(checkIsFavorite(item)),
-                                  ],
-                                ),
-                              );
-                            },
-                          ),
-                  ),
-                ],
-              ),
-      ),
-    );
-  }
-}
-
-// --- شاشة تفاصيل المسلسل لاختيار الحلقات ---
-class SeriesEpisodesScreen extends StatefulWidget {
-  final String username, password, seriesId, seriesName, cover;
-  const SeriesEpisodesScreen({super.key, required this.username, required this.password, required this.seriesId, required this.seriesName, required this.cover});
-
-  @override
-  State<SeriesEpisodesScreen> createState() => _SeriesEpisodesScreenState();
-}
-
-class _SeriesEpisodesScreenState extends State<SeriesEpisodesScreen> {
-  List<dynamic> _allEpisodes = [];
-  bool _isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _fetchEpisodes();
-  }
-
-  Future<void> _fetchEpisodes() async {
-    final url = Uri.parse("$SERVER_URL/player_api.php?username=${widget.username}&password=${widget.password}&action=get_series_info&series_id=${widget.seriesId}");
-    try {
-      final res = await http.get(url, headers: const {"User-Agent": "IPTVSmarters/1.0"});
-      if (res.statusCode == 200) {
-        final data = json.decode(res.body);
-        final episodesMap = data['episodes'];
-        if (episodesMap is Map) {
-          episodesMap.forEach((season, episodesList) {
-            if (episodesList is List) {
-              _allEpisodes.addAll(episodesList);
-            }
-          });
-        }
-        setState(() => _isLoading = false);
-      }
-    } catch (e) {
-      setState(() => _isLoading = false);
+    if (widget.type == "movie") {
+      final streamId = item['stream_id'];
+      final ext = (item['container_extension'] ?? 'mp4').toString();
+      final url = "$SERVER_URL/movie/${widget.username}/${widget.password}/$streamId.$ext";
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => SimpleVideoPlayerScreen(title: name, url: url)),
+      );
+    } else {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => SeriesDetailScreen(
+            username: widget.username,
+            password: widget.password,
+            seriesItem: item,
+          ),
+        ),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(widget.seriesName), backgroundColor: Colors.black),
-      body: buildCustomBackground(
-        _isLoading
+      appBar: AppBar(title: Text(widget.title)),
+      body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : _allEpisodes.isEmpty
-            ? const Center(child: Text("لا توجد حلقات متاحة"))
-            : ListView.builder(
-                padding: const EdgeInsets.all(16),
-                itemCount: _allEpisodes.length,
-                itemBuilder: (context, index) {
-                  final ep = _allEpisodes[index];
-                  final title = ep['title'] ?? "Episode ${index + 1}";
-                  return Card(
-                    color: Colors.black54,
-                    child: ListTile(
-                      leading: const Icon(Icons.play_circle_fill, color: Colors.redAccent, size: 40),
-                      title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
-                      onTap: () {
-                        final ext = ep['container_extension'] ?? 'mp4';
-                        final url = "$SERVER_URL/series/${widget.username}/${widget.password}/${ep['id']}.$ext";
-                        Navigator.push(context, MaterialPageRoute(builder: (_) => FullScreenPlayer(url: url, title: title)));
+          : Row(
+              children: [
+                SizedBox(
+                  width: 240,
+                  child: Container(
+                    color: const Color(0xFF1E1E2D),
+                    child: ListView.builder(
+                      itemCount: _categories.length + 1,
+                      itemBuilder: (context, index) {
+                        if (index == 0) {
+                          final isSel = _selectedCategoryId == 'all';
+                          return ListTile(
+                            tileColor: isSel ? const Color(0xFF8B5CF6) : null,
+                            title: const Text("الكل (ALL)", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                            onTap: () => _filterCategory('all'),
+                          );
+                        }
+                        final cat = _categories[index - 1];
+                        final catId = cat['category_id'].toString();
+                        final isSel = _selectedCategoryId == catId;
+                        return ListTile(
+                          tileColor: isSel ? const Color(0xFF8B5CF6) : null,
+                          title: Text(cat['category_name'] ?? '', style: const TextStyle(fontSize: 13)),
+                          onTap: () => _filterCategory(catId),
+                        );
                       },
                     ),
-                  );
-                },
-              )
-      ),
+                  ),
+                ),
+                Expanded(
+                  child: _filteredItems.isEmpty
+                      ? const Center(child: Text("لا يوجـد محتوى داخل هذه المجموعة"))
+                      : GridView.builder(
+                          padding: const EdgeInsets.all(16),
+                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 4,
+                            childAspectRatio: 0.7,
+                            crossAxisSpacing: 12,
+                            mainAxisSpacing: 12,
+                          ),
+                          itemCount: _filteredItems.length,
+                          itemBuilder: (context, index) {
+                            final item = _filteredItems[index];
+                            final cover = item['stream_icon'] ?? item['cover'] ?? '';
+                            final name = item['name'] ?? '';
+
+                            return GestureDetector(
+                              onTap: () => _openItem(item),
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF1E1E2D),
+                                  borderRadius: BorderRadius.circular(12),
+                                  image: cover.isNotEmpty
+                                      ? DecorationImage(image: NetworkImage(cover), fit: BoxFit.cover)
+                                      : null,
+                                ),
+                                child: Container(
+                                  alignment: Alignment.bottomCenter,
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(12),
+                                    gradient: LinearGradient(
+                                      colors: [Colors.black.withOpacity(0.85), Colors.transparent],
+                                      begin: Alignment.bottomCenter,
+                                      end: Alignment.topCenter,
+                                    ),
+                                  ),
+                                  child: Text(
+                                    name,
+                                    maxLines: 2,
+                                    textAlign: TextAlign.center,
+                                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                ),
+              ],
+            ),
     );
   }
 }
 
-// --- 5. شاشة مشغل الفيديو الجديد ---
-class FullScreenPlayer extends StatefulWidget {
-  final String url;
-  final String title;
+// --- 5. شاشة تفاصيل المسلسل (المواسم والحلقات) ---
+class SeriesDetailScreen extends StatefulWidget {
+  final String username;
+  final String password;
+  final dynamic seriesItem;
 
-  const FullScreenPlayer({super.key, required this.url, required this.title});
+  const SeriesDetailScreen({
+    super.key,
+    required this.username,
+    required this.password,
+    required this.seriesItem,
+  });
 
   @override
-  State<FullScreenPlayer> createState() => _FullScreenPlayerState();
+  State<SeriesDetailScreen> createState() => _SeriesDetailScreenState();
 }
 
-class _FullScreenPlayerState extends State<FullScreenPlayer> {
-  late VideoPlayerController _controller;
-  bool _isInitialized = false;
-  bool _showControls = true;
+class _SeriesDetailScreenState extends State<SeriesDetailScreen> {
+  bool _isLoading = true;
+  Map<String, dynamic> _episodesBySeason = {};
+  List<String> _seasonKeys = [];
+  String _selectedSeason = '';
 
   @override
   void initState() {
     super.initState();
-    _controller = VideoPlayerController.networkUrl(
-      Uri.parse(widget.url),
-      httpHeaders: const {"User-Agent": "IPTVSmarters/1.0"},
-    )..initialize().then((_) {
-        setState(() => _isInitialized = true);
-        _controller.play();
-        Future.delayed(const Duration(seconds: 3), () {
-          if (mounted) setState(() => _showControls = false);
-        });
-      });
+    _loadSeriesInfo();
   }
 
-  void _seek(int seconds) {
-    final newPos = _controller.value.position + Duration(seconds: seconds);
-    _controller.seekTo(newPos);
+  Future<void> _loadSeriesInfo() async {
+    final seriesId = widget.seriesItem['series_id'];
+    final url = Uri.parse(
+        "$SERVER_URL/player_api.php?username=${widget.username}&password=${widget.password}&action=get_series_info&series_id=$seriesId");
+
+    try {
+      final res = await http.get(url, headers: const {"User-Agent": "IPTVSmarters/1.0"});
+      if (res.statusCode == 200) {
+        final data = json.decode(res.body);
+        if (data is Map && data['episodes'] is Map) {
+          final episodesMap = Map<String, dynamic>.from(data['episodes']);
+          final keys = episodesMap.keys.toList()
+            ..sort((a, b) => (int.tryParse(a) ?? 0).compareTo(int.tryParse(b) ?? 0));
+          setState(() {
+            _episodesBySeason = episodesMap;
+            _seasonKeys = keys;
+            _selectedSeason = keys.isNotEmpty ? keys.first : '';
+            _isLoading = false;
+          });
+          return;
+        }
+      }
+      setState(() => _isLoading = false);
+    } catch (e) {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  void _playEpisode(dynamic episode) {
+    final episodeId = episode['id'];
+    final ext = (episode['container_extension'] ?? 'mp4').toString();
+    final epTitle = (episode['title'] ?? widget.seriesItem['name'] ?? '').toString();
+    final url = "$SERVER_URL/series/${widget.username}/${widget.password}/$episodeId.$ext";
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => SimpleVideoPlayerScreen(title: epTitle, url: url)),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final episodes = _episodesBySeason[_selectedSeason] is List
+        ? List<dynamic>.from(_episodesBySeason[_selectedSeason])
+        : <dynamic>[];
+
+    return Scaffold(
+      appBar: AppBar(title: Text((widget.seriesItem['name'] ?? 'Series').toString())),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _seasonKeys.isEmpty
+              ? const Center(child: Text("لا توجد حلقات متاحة لهذا المسلسل حالياً"))
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SizedBox(
+                      height: 56,
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        itemCount: _seasonKeys.length,
+                        itemBuilder: (context, index) {
+                          final season = _seasonKeys[index];
+                          final isSel = season == _selectedSeason;
+                          return Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child: ChoiceChip(
+                              label: Text("الموسم $season"),
+                              selected: isSel,
+                              selectedColor: const Color(0xFF8B5CF6),
+                              onSelected: (_) => setState(() => _selectedSeason = season),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    Expanded(
+                      child: ListView.builder(
+                        itemCount: episodes.length,
+                        itemBuilder: (context, index) {
+                          final ep = episodes[index];
+                          final epNum = (ep['episode_num'] ?? (index + 1)).toString();
+                          final epTitle = (ep['title'] ?? 'الحلقة $epNum').toString();
+                          return ListTile(
+                            leading: CircleAvatar(
+                              backgroundColor: const Color(0xFF8B5CF6),
+                              child: Text(epNum, style: const TextStyle(fontSize: 12, color: Colors.white)),
+                            ),
+                            title: Text(epTitle, style: const TextStyle(fontSize: 13)),
+                            trailing: const Icon(Icons.play_circle_outline, color: Color(0xFF8B5CF6)),
+                            onTap: () => _playEpisode(ep),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+    );
+  }
+}
+
+// --- 6. شاشة تشغيل الفيديو (أفلام وحلقات) ---
+class SimpleVideoPlayerScreen extends StatefulWidget {
+  final String title;
+  final String url;
+
+  const SimpleVideoPlayerScreen({super.key, required this.title, required this.url});
+
+  @override
+  State<SimpleVideoPlayerScreen> createState() => _SimpleVideoPlayerScreenState();
+}
+
+class _SimpleVideoPlayerScreenState extends State<SimpleVideoPlayerScreen> {
+  VideoPlayerController? _controller;
+  bool _hasError = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initPlayer();
+  }
+
+  Future<void> _initPlayer() async {
+    try {
+      final controller = VideoPlayerController.networkUrl(
+        Uri.parse(widget.url),
+        httpHeaders: const {"User-Agent": "IPTVSmarters/1.0"},
+      );
+      await controller.initialize();
+      if (!mounted) return;
+      setState(() => _controller = controller);
+      controller.play();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _hasError = true);
+    }
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _controller?.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final controller = _controller;
+
     return Scaffold(
       backgroundColor: Colors.black,
-      body: GestureDetector(
-        onTap: () => setState(() => _showControls = !_showControls),
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            if (_isInitialized)
-              AspectRatio(aspectRatio: _controller.value.aspectRatio, child: VideoPlayer(_controller))
-            else
-              const CircularProgressIndicator(color: Colors.redAccent),
-            
-            if (_showControls && _isInitialized) ...[
-              Container(color: Colors.black54),
-              Positioned(
-                top: 40, left: 20,
-                child: Row(
-                  children: [
-                    IconButton(icon: const Icon(Icons.arrow_back, color: Colors.white, size: 30), onPressed: () => Navigator.pop(context)),
-                    Text(widget.title, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-                  ],
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        title: Text(widget.title, style: const TextStyle(fontSize: 16)),
+      ),
+      body: Center(
+        child: _hasError
+            ? const Padding(
+                padding: EdgeInsets.all(24),
+                child: Text(
+                  "تعذر تشغيل هذا الفيديو، جرّب مرة أخرى لاحقاً",
+                  style: TextStyle(color: Colors.white70),
+                  textAlign: TextAlign.center,
                 ),
-              ),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.replay_10, color: Colors.white), iconSize: 60,
-                    onPressed: () => _seek(-10),
-                  ),
-                  IconButton(
-                    icon: Icon(_controller.value.isPlaying ? Icons.pause_circle_filled : Icons.play_circle_fill, color: Colors.redAccent), iconSize: 80,
-                    onPressed: () {
-                      setState(() {
-                        _controller.value.isPlaying ? _controller.pause() : _controller.play();
-                      });
-                    },
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.forward_10, color: Colors.white), iconSize: 60,
-                    onPressed: () => _seek(10),
-                  ),
-                ],
-              ),
-              Positioned(
-                bottom: 30, left: 40, right: 40,
-                child: VideoProgressIndicator(_controller, allowScrubbing: true, colors: const VideoProgressColors(playedColor: Colors.redAccent)),
               )
-            ]
-          ],
-        ),
+            : (controller != null && controller.value.isInitialized)
+                ? ValueListenableBuilder<VideoPlayerValue>(
+                    valueListenable: controller,
+                    builder: (context, value, child) {
+                      return AspectRatio(
+                        aspectRatio: value.aspectRatio,
+                        child: GestureDetector(
+                          onTap: () {
+                            value.isPlaying ? controller.pause() : controller.play();
+                          },
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              VideoPlayer(controller),
+                              if (!value.isPlaying)
+                                Container(
+                                  padding: const EdgeInsets.all(16),
+                                  decoration: const BoxDecoration(color: Colors.black45, shape: BoxShape.circle),
+                                  child: const Icon(Icons.play_arrow, color: Colors.white, size: 48),
+                                ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  )
+                : const Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      CircularProgressIndicator(color: Color(0xFF8B5CF6)),
+                      SizedBox(height: 12),
+                      Text("جاري تحميل الفيديو...", style: TextStyle(color: Colors.white54)),
+                    ],
+                  ),
       ),
     );
   }
 }
 
-// --- شاشة المفضلة (FAVORITES) ---
-class FavoritesScreen extends StatefulWidget {
+// --- 7. شاشة الإعدادات ---
+class SettingsScreen extends StatefulWidget {
   final String username;
   final String password;
-  const FavoritesScreen({super.key, required this.username, required this.password});
+  final String expDateStr;
+
+  const SettingsScreen({
+    super.key,
+    required this.username,
+    required this.password,
+    required this.expDateStr,
+  });
 
   @override
-  State<FavoritesScreen> createState() => _FavoritesScreenState();
+  State<SettingsScreen> createState() => _SettingsScreenState();
 }
 
-class _FavoritesScreenState extends State<FavoritesScreen> {
+class _SettingsScreenState extends State<SettingsScreen> {
+  bool _showPassword = false;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("المفضلة (Favorites)"), backgroundColor: Colors.black),
-      body: buildCustomBackground(
-        globalFavorites.isEmpty
-          ? const Center(child: Text("لا توجد عناصر في المفضلة", style: TextStyle(fontSize: 18, color: Colors.white)))
-          : GridView.builder(
-              padding: const EdgeInsets.all(16),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 5, childAspectRatio: 0.7, crossAxisSpacing: 10, mainAxisSpacing: 10),
-              itemCount: globalFavorites.length,
-              itemBuilder: (context, index) {
-                final item = globalFavorites[index];
-                final type = item['fav_type'];
-                final cover = item['stream_icon'] ?? item['cover'] ?? '';
-                final name = item['name'] ?? '';
-
-                return GestureDetector(
-                  onLongPress: () {
-                    setState(() { globalFavorites.removeAt(index); });
-                  },
-                  onTap: () {
-                    if (type == 'movie') {
-                      final url = "$SERVER_URL/movie/${widget.username}/${widget.password}/${item['stream_id']}.${item['container_extension'] ?? 'mp4'}";
-                      Navigator.push(context, MaterialPageRoute(builder: (_) => FullScreenPlayer(url: url, title: name)));
-                    } else if (type == 'series') {
-                      Navigator.push(context, MaterialPageRoute(builder: (_) => SeriesEpisodesScreen(
-                        username: widget.username, password: widget.password, seriesId: item['series_id'].toString(), seriesName: name, cover: cover
-                      )));
-                    } else if (type == 'live') {
-                      final url = "$SERVER_URL/live/${widget.username}/${widget.password}/${item['stream_id']}.ts";
-                      Navigator.push(context, MaterialPageRoute(builder: (_) => FullScreenPlayer(url: url, title: name)));
-                    }
-                  },
-                  child: Stack(
-                    children: [
-                      Container(
-                        decoration: BoxDecoration(
-                          color: Colors.black87,
-                          borderRadius: BorderRadius.circular(8),
-                          image: cover.isNotEmpty ? DecorationImage(image: NetworkImage(cover), fit: BoxFit.cover) : null,
-                        ),
-                        child: Container(
-                          alignment: Alignment.bottomCenter,
-                          padding: const EdgeInsets.all(5),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(8),
-                            gradient: const LinearGradient(colors: [Colors.black, Colors.transparent], begin: Alignment.bottomCenter, end: Alignment.topCenter),
-                          ),
-                          child: Text(name, maxLines: 2, textAlign: TextAlign.center, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                        ),
-                      ),
-                      buildPyramidBadge(true),
-                    ],
-                  ),
+      appBar: AppBar(title: const Text("Settings")),
+      body: ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
+          _infoTile("اسم المستخدم", widget.username, Icons.person),
+          const SizedBox(height: 12),
+          _infoTile(
+            "كلمة السر",
+            _showPassword ? widget.password : List.filled(widget.password.length, '•').join(),
+            Icons.lock,
+            trailing: IconButton(
+              icon: Icon(
+                _showPassword ? Icons.visibility_off : Icons.visibility,
+                color: Colors.white54,
+              ),
+              onPressed: () => setState(() => _showPassword = !_showPassword),
+            ),
+          ),
+          const SizedBox(height: 12),
+          _infoTile("السيرفر", SERVER_URL, Icons.dns),
+          const SizedBox(height: 12),
+          _infoTile("تاريخ الانتهاء", widget.expDateStr, Icons.event),
+          const SizedBox(height: 32),
+          SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: ElevatedButton.icon(
+              onPressed: () {
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (_) => const LoginPage()),
+                  (route) => false,
                 );
               },
-            )
+              icon: const Icon(Icons.logout),
+              label: const Text("تسجيل الخروج"),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.redAccent.withOpacity(0.85),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _infoTile(String label, String value, IconData icon, {Widget? trailing}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E1E2D),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: const Color(0xFF8B5CF6), size: 20),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: const TextStyle(color: Colors.white54, fontSize: 11)),
+                const SizedBox(height: 2),
+                Text(value, style: const TextStyle(color: Colors.white, fontSize: 14)),
+              ],
+            ),
+          ),
+          if (trailing != null) trailing,
+        ],
       ),
     );
   }
